@@ -1,0 +1,35 @@
+{
+  "name": "hanirum-detail-page-redesign-wizard",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "dev:local": "next dev -p 3002",
+    "build": "next build",
+    "start": "next start",
+    "deploy:preview": "vercel deploy -y --scope irums-projects-1428d2a1",
+    "deploy:prod": "vercel deploy --prod -y --scope irums-projects-1428d2a1",
+    "publish": "npm run build && npm run deploy:prod",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
+    "class-variance-authority": "latest",
+    "clsx": "latest",
+    "lucide-react": "latest",
+    "next": "latest",
+    "openai": "^6.34.0",
+    "pdfjs-dist": "^5.6.205",
+    "react": "latest",
+    "react-dom": "latest",
+    "tailwind-merge": "latest"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "latest",
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "tailwindcss": "latest",
+    "typescript": "latest"
+  }
+}

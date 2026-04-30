@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="14" fill="#171a1f"/>
+  <path d="M48 0h16v64H34L48 0z" fill="#34d399"/>
+  <path d="M53 0h11v64H42L53 0z" fill="#a3e635" opacity=".88"/>
+  <rect x="7" y="7" width="50" height="50" rx="10" fill="none" stroke="#ffffff" stroke-opacity=".14" stroke-width="2"/>
+  <text x="31" y="39" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="900" letter-spacing="-1" text-anchor="middle">HR</text>
+</svg>

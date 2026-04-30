@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: #f7f8f5;
+  --color-foreground: #171a1f;
+  --color-card: #ffffff;
+  --color-card-foreground: #171a1f;
+  --color-muted: #edf2ec;
+  --color-muted-foreground: #6b7280;
+  --color-border: #dfe4dc;
+  --color-ring: rgba(47, 191, 113, 0.28);
+  --font-sans: "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.82), rgba(247,248,245,0.96)),
+    repeating-linear-gradient(90deg, rgba(23,26,31,0.025) 0 1px, transparent 1px 80px);
+  color: var(--color-foreground);
+  letter-spacing: 0;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
