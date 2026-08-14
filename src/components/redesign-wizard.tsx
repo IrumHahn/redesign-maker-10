@@ -16,7 +16,8 @@ import {
   Settings,
   Sparkles,
   Trash2,
-  Upload
+  Upload,
+  X
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -270,6 +271,7 @@ export function RedesignWizard() {
 
   React.useEffect(() => {
     if (!toast) return;
+    if (isPersistentToast(toast)) return;
     const timer = window.setTimeout(() => setToast(""), 2800);
     return () => window.clearTimeout(timer);
   }, [toast]);
@@ -892,8 +894,28 @@ export function RedesignWizard() {
       </Dialog>
 
       {toast && (
-        <div className="fixed bottom-4 right-4 z-50 max-w-sm rounded-md bg-foreground px-4 py-3 text-sm text-background shadow-xl">
-          {toast}
+        <div
+          className={cn(
+            "fixed bottom-4 right-4 z-50 max-w-lg rounded-md px-4 py-3 text-sm shadow-xl",
+            isPersistentToast(toast)
+              ? "border border-destructive/30 bg-white text-foreground"
+              : "bg-foreground text-background"
+          )}
+          role="alert"
+        >
+          <div className="flex items-start gap-3">
+            <p className="whitespace-pre-wrap leading-relaxed">{toast}</p>
+            {isPersistentToast(toast) ? (
+              <button
+                type="button"
+                className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                onClick={() => setToast("")}
+                aria-label="메시지 닫기"
+              >
+                <X className="size-4" />
+              </button>
+            ) : null}
+          </div>
         </div>
       )}
       {generating && generationProgress && generationPlan && (
@@ -927,6 +949,24 @@ async function fetchServerConfig(): Promise<ServerConfig> {
       knowledgeAdminRequired: false
     };
   }
+}
+
+function isPersistentToast(message: string) {
+  return [
+    "생성 실패",
+    "수정 실패",
+    "오류",
+    "올바르지 않습니다",
+    "접근할 수 없습니다",
+    "권한",
+    "한도",
+    "할당량",
+    "중단되었습니다",
+    "quota",
+    "Quota",
+    "Billing",
+    "does not have access"
+  ].some((keyword) => message.includes(keyword));
 }
 
 async function readApiResponse(response: Response): Promise<any> {

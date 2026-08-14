@@ -160,5 +160,14 @@ function humanizeProviderError(message: string) {
   if (message.includes("must be verified") && message.includes("gpt-image-2-2026-04-21")) {
     return "OpenAI Image 2.0 사용 권한이 아직 없습니다. OpenAI 조직 인증을 완료한 뒤 다시 시도해주세요.";
   }
+  if (message.includes("does not have access to model") && message.includes("gpt-image-2-2026-04-21")) {
+    return "현재 입력한 OpenAI API 키의 프로젝트가 OpenAI Image 2.0 모델에 접근할 수 없습니다. 조직 인증, 프로젝트 권한, 결제 상태를 확인한 뒤 Image 2.0 권한이 있는 프로젝트의 API 키를 다시 입력해주세요.";
+  }
+  if (message.includes("Billing hard limit has been reached")) {
+    return "OpenAI 결제 한도에 도달해 섹션 수정이 중단되었습니다. OpenAI Platform의 Billing 한도 또는 사용량 제한을 올린 뒤 다시 시도해주세요.";
+  }
+  if (message.includes("exceeded your current quota") || message.includes("Quota exceeded")) {
+    return "Google Nano Banana 2 API 할당량을 초과했습니다. Google AI Studio 또는 Cloud Console에서 현재 사용량과 rate limit을 확인한 뒤 잠시 후 다시 시도해주세요.";
+  }
   return message;
 }
