@@ -39,6 +39,7 @@ export async function POST(request: NextRequest) {
     const useKnowledge = String(form.get("useKnowledge") || "") === "true";
     const knowledgeAccessKey = String(form.get("knowledgeAccessKey") || "");
     const provider = String(form.get("model") || "openai") === "google" ? "google" : "openai";
+    const copyMode: "baked" | "textless" = String(form.get("copyMode") || "baked") === "textless" ? "textless" : "baked";
     const channel = String(form.get("channel") || "스마트스토어");
     const ratio = String(form.get("ratio") || "9:16");
     const count = clamp(Number(form.get("count") || 1), 1, 10);
@@ -81,7 +82,7 @@ export async function POST(request: NextRequest) {
         })
       : "";
     console.info(`[generate] knowledge ready job=${jobId} useKnowledge=${useKnowledge} chars=${retrievedKnowledgeText.length}`);
-    const payload = { request: requestText, rolloutRequest, knowledgeText: retrievedKnowledgeText, options: { channel, ratio, count } };
+    const payload = { request: requestText, rolloutRequest, knowledgeText: retrievedKnowledgeText, options: { channel, ratio, count }, copyMode };
     console.info(`[generate] analysis start job=${jobId}`);
     const analysis = await analyzeSource({ provider, apiKey, references, payload, modelInfo });
     console.info(`[generate] analysis done job=${jobId}`);
@@ -195,7 +196,7 @@ async function analyzeSource({
   provider: Provider;
   apiKey: string;
   references: ReferenceImage[];
-  payload: { request: string; rolloutRequest: string; knowledgeText: string; options: { channel: string; ratio: string; count: number } };
+  payload: { request: string; rolloutRequest: string; knowledgeText: string; options: { channel: string; ratio: string; count: number }; copyMode: "baked" | "textless" };
   modelInfo: ReturnType<typeof modelMeta>;
 }) {
   const prompt = [
@@ -207,7 +208,9 @@ async function analyzeSource({
     payload.rolloutRequest ? `히어로 검토 후 나머지 섹션에 반영할 요청: ${payload.rolloutRequest}` : "히어로 검토 후 요청: 없음",
     payload.knowledgeText ? `사용자 사전 지식:\n${payload.knowledgeText.slice(0, 30000)}` : "사용자 사전 지식: 없음",
     `이미지 생성 모델: ${modelInfo.label} (${modelInfo.id})`,
-    "JSON 키: product_inferred, diagnostic_summary, strategy, page_blueprint, compliance_notes"
+    payload.copyMode === "textless"
+      ? "JSON 키: product_inferred, diagnostic_summary, strategy, page_blueprint, compliance_notes, hero_copy. hero_copy는 히어로 섹션에서 소비자에게 그대로 보여줄 한국어 카피로 {headline(12자 내외), subheadline(20자 내외), bullets(3개, 각 10자 내외), cta(8자 내외)} 형식을 반드시 지켜라."
+      : "JSON 키: product_inferred, diagnostic_summary, strategy, page_blueprint, compliance_notes"
   ].join("\n");
 
   try {
@@ -337,7 +340,7 @@ async function generateGoogleImage({ apiKey, prompt, references }: { apiKey: str
 function buildSections(
   count: number,
   startSection: number,
-  payload: { request: string; rolloutRequest: string; knowledgeText: string; options: { channel: string; ratio: string; count: number } },
+  payload: { request: string; rolloutRequest: string; knowledgeText: string; options: { channel: string; ratio: string; count: number }; copyMode: "baked" | "textless" },
   analysis: unknown,
   modelInfo: ReturnType<typeof modelMeta>
 ): Section[] {
@@ -359,7 +362,9 @@ function buildSections(
       "브랜드 사용 규칙: 제품 브랜드명과 제품명은 업로드된 원본 상세페이지 또는 제품 패키지에서 확인되는 이름만 사용한다. 원본에서 확인되지 않는 새 브랜드명, 새 제품명, 새 로고를 만들지 않는다.",
       "전체 연결 규칙: 8장을 이어 붙였을 때 하나의 상세페이지처럼 보여야 한다. 동일한 브랜드 색, 폰트 감각, 제품 사진 톤은 유지하되 각 섹션의 레이아웃은 반드시 다르게 구성한다. 모든 섹션이 큰 상단 헤드라인+중앙 제품컷으로 반복되면 안 된다.",
       "섹션별 변화 규칙: 제품 위치, 정보 카드 모양, 아이콘 밀도, 배경 분할, CTA 위치, 타이포 크기 리듬을 섹션마다 다르게 한다. 같은 헤드라인 문구를 반복하지 말고, 섹션 목적에 맞는 새로운 제목을 쓴다.",
-      "안전 규칙: 원본 제품컷/색감/핵심 정보는 보존한다. 근거 없는 수치, 리뷰, 인증, 효과를 만들지 않는다. 한 장에 메시지 하나만 담는다. 한국어 문구는 크게, 불릿은 3개 이하로 배치한다. 복잡한 배경과 작은 글씨를 피한다. 규제 리스크가 있으면 안전한 표현으로 완화한다."
+      payload.copyMode === "textless"
+        ? "텍스트 금지 규칙: 이미지 안에 어떤 글자, 숫자, 로고, 워드마크, 타이포그래피도 넣지 않는다. 카피는 앱이 나중에 별도로 합성한다. 하단 40% 영역은 카피가 올라갈 수 있도록 단순한 배경과 여백으로 구성하고, 제품컷과 색감은 원본을 보존한다."
+        : "안전 규칙: 원본 제품컷/색감/핵심 정보는 보존한다. 근거 없는 수치, 리뷰, 인증, 효과를 만들지 않는다. 한 장에 메시지 하나만 담는다. 한국어 문구는 크게, 불릿은 3개 이하로 배치한다. 복잡한 배경과 작은 글씨를 피한다. 규제 리스크가 있으면 안전한 표현으로 완화한다."
     ].join("\n");
 
     return {
