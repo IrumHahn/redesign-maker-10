@@ -1002,7 +1002,7 @@ function pickAnalysisText(source: Record<string, unknown>, keys: string[]) {
   return "";
 }
 
-export async function normalizeFilesForUpload(files: File[]) {
+async function normalizeFilesForUpload(files: File[]) {
   const output: File[] = [];
   for (const file of files) {
     if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
