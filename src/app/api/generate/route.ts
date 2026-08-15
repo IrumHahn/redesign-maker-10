@@ -455,9 +455,12 @@ async function prepareReferenceImages(files: File[]): Promise<ReferenceImage[]> 
 function parseDataUrlReference(value: string): ReferenceImage | null {
   const match = value.match(/^data:([^;]+);base64,(.+)$/);
   if (!match) return null;
+  const mimeType = match[1];
+  // 파일명 확장자가 실제 mime과 다르면 OpenAI 편집 API가 입력을 거부한다.
+  const extension = mimeType === "image/jpeg" ? "jpg" : mimeType === "image/webp" ? "webp" : "png";
   return {
-    name: "hero-style-reference.png",
-    mimeType: match[1],
+    name: `hero-style-reference.${extension}`,
+    mimeType,
     buffer: Buffer.from(match[2], "base64")
   };
 }
