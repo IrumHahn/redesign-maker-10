@@ -5,10 +5,12 @@ export type ExportSection = {
   name: string;
   imageUrl?: string;
   copy?: {
+    eyebrow?: string;
     headline?: string;
     subheadline?: string;
-    bullets?: string[];
-    cta?: string;
+    points?: Array<{ label?: string; desc?: string }>;
+    extras?: string[];
+    note?: string;
   };
 };
 
@@ -41,13 +43,15 @@ export function buildBlueprintMarkdown(sections: ExportSection[], title: string)
   sections.forEach((section, index) => {
     const copy = section.copy;
     lines.push(`## ${index + 1}. ${section.name}`);
-    if (copy?.headline) lines.push(`**헤드라인:** ${copy.headline}`);
-    if (copy?.subheadline) lines.push(`**서브헤드:** ${copy.subheadline}`);
-    if (copy?.bullets?.length) {
-      lines.push("", "**핵심 포인트:**", ...copy.bullets.map((bullet) => `- ${bullet}`));
+    if (copy?.eyebrow) lines.push(`**라벨:** ${copy.eyebrow}`);
+    if (copy?.headline) lines.push(`**대제목:** ${copy.headline}`);
+    if (copy?.subheadline) lines.push(`**설명:** ${copy.subheadline}`);
+    if (copy?.points?.length) {
+      lines.push("", "**핵심 포인트:**", ...copy.points.map((point) => `- **${point.label || ""}** ${point.desc || ""}`.trim()));
     }
-    if (copy?.cta) lines.push("", `**CTA:** ${copy.cta}`);
-    if (!copy?.headline && !copy?.subheadline && !copy?.bullets?.length) {
+    if (copy?.extras?.length) lines.push("", `**아이콘 타일:** ${copy.extras.join(" · ")}`);
+    if (copy?.note) lines.push("", `**안내:** ${copy.note}`);
+    if (!copy?.headline && !copy?.subheadline && !copy?.points?.length) {
       lines.push("_이 섹션은 카피 데이터 없이 생성되었습니다._");
     }
     lines.push("");

@@ -33,10 +33,12 @@ type Model = "openai" | "google";
 type View = "dashboard" | "workspace" | "results";
 
 type SectionCopy = {
+  eyebrow: string;
   headline: string;
   subheadline: string;
-  bullets: string[];
-  cta: string;
+  points: Array<{ label: string; desc: string }>;
+  extras: string[];
+  note: string;
 };
 
 type SectionResult = {
@@ -1529,6 +1531,7 @@ function Results({
   editingSectionId: string | null;
 }) {
   const [exporting, setExporting] = React.useState(false);
+  const [viewerIndex, setViewerIndex] = React.useState<number | null>(null);
 
   if (!project) {
     return (
@@ -1613,19 +1616,148 @@ function Results({
             projectTitle={title}
             defaultModel={project.model}
             onEditSection={onEditSection}
+            onOpenViewer={() => setViewerIndex(index)}
             editing={editingSectionId === section.id}
             disabled={generating}
           />
         ))}
       </div>
+
+      {viewerIndex !== null ? (
+        <ImageViewer
+          sections={project.sections}
+          index={viewerIndex}
+          projectTitle={title}
+          onIndexChange={setViewerIndex}
+          onClose={() => setViewerIndex(null)}
+        />
+      ) : null}
     </section>
+  );
+}
+
+/** 섹션 이미지를 원본 크기로 크게 보는 뷰어. 좌우 키와 ESC를 지원한다. */
+function ImageViewer({
+  sections,
+  index,
+  projectTitle,
+  onIndexChange,
+  onClose
+}: {
+  sections: SectionResult[];
+  index: number;
+  projectTitle: string;
+  onIndexChange: (index: number) => void;
+  onClose: () => void;
+}) {
+  const section = sections[index];
+  const [zoomed, setZoomed] = React.useState(false);
+
+  const move = React.useCallback((step: number) => {
+    onIndexChange((index + step + sections.length) % sections.length);
+    setZoomed(false);
+  }, [index, sections.length, onIndexChange]);
+
+  React.useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+      if (event.key === "ArrowLeft") move(-1);
+      if (event.key === "ArrowRight") move(1);
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [move, onClose]);
+
+  if (!section) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col bg-foreground/80 backdrop-blur-sm" onClick={onClose}>
+      <div className="flex shrink-0 items-center justify-between gap-3 px-5 py-3 text-background" onClick={(event) => event.stopPropagation()}>
+        <div className="min-w-0">
+          <strong className="block truncate text-sm">{section.name.replace(/^S\d+\s*/, "")}</strong>
+          <span className="text-xs opacity-70">{index + 1} / {sections.length}</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            className="grid h-9 items-center rounded-full px-3 text-xs font-bold text-background/90 transition hover:bg-white/15"
+            onClick={() => setZoomed((current) => !current)}
+          >
+            {zoomed ? "화면에 맞추기" : "원본 크기"}
+          </button>
+          <button
+            type="button"
+            className="grid size-9 place-items-center rounded-full text-background/90 transition hover:bg-white/15"
+            onClick={() => section.imageUrl && downloadDataUrl(section.imageUrl, buildImageFileName(projectTitle, section, index))}
+            aria-label="이미지 다운로드"
+          >
+            <Download className="size-5" />
+          </button>
+          <button
+            type="button"
+            className="grid size-9 place-items-center rounded-full text-background/90 transition hover:bg-white/15"
+            onClick={onClose}
+            aria-label="닫기"
+          >
+            <X className="size-5" />
+          </button>
+        </div>
+      </div>
+
+      <div className={cn("min-h-0 flex-1 px-5 pb-5", zoomed ? "overflow-auto" : "grid place-items-center overflow-hidden")}>
+        {section.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={section.imageUrl}
+            alt={section.name}
+            className={cn(
+              "rounded-2xl bg-white shadow-2xl",
+              zoomed ? "w-auto max-w-none cursor-zoom-out" : "max-h-[calc(100vh-7.5rem)] w-auto max-w-full cursor-zoom-in object-contain"
+            )}
+            onClick={(event) => {
+              event.stopPropagation();
+              setZoomed((current) => !current);
+            }}
+          />
+        ) : (
+          <p className="text-sm text-background/80">이 섹션에는 저장된 이미지가 없습니다.</p>
+        )}
+      </div>
+
+      {sections.length > 1 ? (
+        <>
+          <button
+            type="button"
+            className="absolute left-3 top-1/2 grid size-11 -translate-y-1/2 place-items-center rounded-full bg-white/15 text-background transition hover:bg-white/25"
+            onClick={(event) => {
+              event.stopPropagation();
+              move(-1);
+            }}
+            aria-label="이전 섹션"
+          >
+            <ChevronLeft className="size-6" />
+          </button>
+          <button
+            type="button"
+            className="absolute right-3 top-1/2 grid size-11 -translate-y-1/2 place-items-center rounded-full bg-white/15 text-background transition hover:bg-white/25"
+            onClick={(event) => {
+              event.stopPropagation();
+              move(1);
+            }}
+            aria-label="다음 섹션"
+          >
+            <ChevronRight className="size-6" />
+          </button>
+        </>
+      ) : null}
+    </div>
   );
 }
 
 const quickEditPresets = [
   ["카피 강화", "헤드라인과 핵심 문구를 더 명확하고 구매전환 중심으로 강화해주세요. 근거 없는 수치나 효능은 추가하지 마세요."],
-  ["글자 크게", "스마트폰에서 읽기 쉽도록 헤드라인과 본문 글자를 더 크게 키우고, 작은 글씨와 정보량을 줄여주세요."],
-  ["CTA 강화", "CTA 영역을 더 잘 보이게 하고 구매 불안을 줄이는 짧은 신뢰 문구를 함께 배치해주세요."],
+  ["글자 크게", "정보량은 그대로 두고 대제목과 소제목, 본문 글자만 더 크게 키워 스마트폰에서 잘 읽히게 해주세요."],
+  ["정보 채우기", "빈 여백이 많습니다. 아이콘 타일 줄이나 정보 카드를 더 추가해 화면을 정보로 채워주세요. 없는 사실은 만들지 마세요."],
   ["레이아웃 변경", "다른 섹션과 반복되어 보이지 않도록 제품 위치, 카드 구조, 정보 흐름을 다르게 재구성해주세요."],
   ["안전 표현", "과장되거나 효능을 단정하는 표현은 줄이고 안전한 표현으로 완화해주세요."]
 ];
@@ -1636,6 +1768,7 @@ function SectionResultCard({
   projectTitle,
   defaultModel,
   onEditSection,
+  onOpenViewer,
   editing,
   disabled
 }: {
@@ -1644,6 +1777,7 @@ function SectionResultCard({
   projectTitle: string;
   defaultModel: Model;
   onEditSection: (sectionId: string, editRequest: string, model: Model) => void;
+  onOpenViewer: () => void;
   editing: boolean;
   disabled: boolean;
 }) {
@@ -1669,8 +1803,10 @@ function SectionResultCard({
     <Card className="group overflow-hidden">
       <div className="relative aspect-[9/16] bg-muted">
         {activeRevision?.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={activeRevision.imageUrl} alt={`${shortName} ${activeRevision.label}`} className="h-full w-full object-cover" />
+          <button type="button" className="block h-full w-full cursor-zoom-in" onClick={onOpenViewer} aria-label={`${shortName} 크게 보기`}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={activeRevision.imageUrl} alt={`${shortName} ${activeRevision.label}`} className="h-full w-full object-cover" />
+          </button>
         ) : (
           <PlaceholderThumb index={index} />
         )}

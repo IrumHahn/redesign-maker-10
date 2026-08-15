@@ -17,11 +17,18 @@ type ReferenceImage = {
   buffer: Buffer;
 };
 
+type CopyPoint = {
+  label: string;
+  desc: string;
+};
+
 type SectionCopy = {
+  eyebrow: string;
   headline: string;
   subheadline: string;
-  bullets: string[];
-  cta: string;
+  points: CopyPoint[];
+  extras: string[];
+  note: string;
 };
 
 type Section = {
@@ -208,10 +215,11 @@ async function analyzeSource({
     "# 출력 형식",
     "JSON 키: product_inferred, diagnostic_summary, strategy, sections, compliance_notes",
     "sections는 S1~S8 8개 배열이며 각 항목은 다음 형식을 반드시 지킨다.",
-    '{ "section_id": "S1", "headline": "20자 이내", "subheadline": "35자 이내", "bullets": ["18자 이내", "18자 이내", "18자 이내"], "cta": "10자 이내 또는 빈 문자열", "evidence": "원본에서 확인된 근거만" }',
-    "섹션 역할: S1 히어로 / S2 문제공감 체크리스트 / S3 베네핏 3개 / S4 USP 차별점 / S5 근거·신뢰 / S6 사용법 / S7 후기 / S8 FAQ·오퍼",
-    "cta는 S1, S5, S8에 반드시 넣는다.",
-    "모바일에서 크게 읽히도록 글자 수 제한을 넘기지 말고, 섹션마다 다른 헤드라인을 쓴다.",
+    '{ "section_id": "S1", "eyebrow": "상단 작은 라벨 12자 이내", "headline": "굵은 대제목 30자 이내, 2~3줄로 끊어 읽히게", "subheadline": "설명 45자 이내", "points": [{"label": "굵은 소제목 10자 이내", "desc": "설명 30자 이내"}], "extras": ["아이콘 타일용 짧은 라벨 8자 이내"], "note": "안내나 주의 한 줄, 없으면 빈 문자열", "evidence": "원본에서 확인된 근거만" }',
+    "points는 3개, extras는 4~5개를 채운다. 정보를 비우지 말고 원본에서 확인되는 내용으로 최대한 채운다.",
+    "섹션 역할: S1 히어로 / S2 문제공감 체크리스트 / S3 베네핏 3개 / S4 USP 차별점 / S5 근거·신뢰 / S6 사용법 / S7 후기 / S8 FAQ·배송·교환 안내",
+    "구매 버튼이나 CTA 문구는 만들지 않는다. 한국 상세페이지는 이미지 안에 구매 버튼을 넣지 않는다.",
+    "각 문장은 짧게 끊어 크게 읽히게 쓰되, 섹션의 정보량 자체를 줄이지는 않는다. 섹션마다 다른 헤드라인을 쓴다.",
     `이미지 생성 모델: ${modelInfo.label} (${modelInfo.id})`
   ].join("\n");
 
@@ -382,17 +390,23 @@ function buildSections(
       payload.rolloutRequest ? `히어로 검토 후 사용자가 요청한 반영사항: ${payload.rolloutRequest}` : "히어로 검토 후 반영사항: 없음",
       "",
       "# 이미지에 넣을 문구 (아래 문구를 그대로 사용하고 새 문구를 지어내지 않는다)",
-      `헤드라인: ${copy.headline}`,
-      `서브헤드: ${copy.subheadline}`,
-      copy.bullets.length > 0 ? `불릿(각각 한 줄): ${copy.bullets.join(" / ")}` : "불릿: 없음",
-      copy.cta ? `CTA 버튼: ${copy.cta}` : "CTA 버튼: 없음",
+      copy.eyebrow ? `상단 라벨(작은 알약 배지): ${copy.eyebrow}` : "상단 라벨: 없음",
+      `대제목(가장 크게, 2~3줄로 끊어서): ${copy.headline}`,
+      copy.subheadline ? `설명: ${copy.subheadline}` : "설명: 없음",
+      copy.points.length > 0
+        ? `핵심 포인트(아이콘 + 굵은 소제목 + 설명 2줄 구조로 각각 배치):\n${copy.points.map((point) => `- ${point.label} :: ${point.desc}`).join("\n")}`
+        : "핵심 포인트: 없음",
+      copy.extras.length > 0 ? `아이콘 타일 라벨(가로로 나열): ${copy.extras.join(" / ")}` : "아이콘 타일 라벨: 없음",
+      copy.note ? `하단 안내 문구(작은 한 줄): ${copy.note}` : "하단 안내 문구: 없음",
       "",
       "# 디자인 규칙",
-      "스타일: 한국 스마트스토어에서 흔히 보는 완성형 상세페이지 디자인을 따른다. 둥근 정보 카드, 체크 아이콘 목록, 번호 배지, 아이콘 타일, 포인트 컬러 강조 같은 익숙한 구성 요소를 사용하고, 밝은 배경에 정돈된 그리드로 배치한다.",
-      "모바일 가독성: 스마트폰 세로 화면에서 그대로 읽히도록 크게 만든다. 헤드라인 글자 높이는 이미지 폭의 8% 이상, 본문과 불릿은 3.5% 이상으로 한다. 텍스트 블록은 한 장에 최대 5개, 불릿은 3개까지만 넣는다. 작은 각주, 빽빽한 표, 3단 이상 좌우 분할, 이미지 폭 3% 미만의 작은 글씨는 사용하지 않는다.",
+      "스타일: 한국 스마트스토어에서 흔히 보는 완성형 상세페이지 디자인을 따른다. 둥근 정보 카드, 체크 아이콘 목록, 원형 아이콘 배지, 번호 배지, 가로 아이콘 타일 줄, 포인트 컬러 강조를 적극적으로 사용하고 밝은 배경에 정돈된 그리드로 배치한다.",
+      "정보 밀도: 화면을 정보로 가득 채운다. 위에서 아래로 상단 라벨 → 대제목 → 설명 → 제품 사진 → 포인트 카드 → 아이콘 타일 줄 → 안내 문구 순으로 층을 쌓아 빈 곳을 남기지 않는다. 큰 빈 여백, 문구 3~4개만 떠 있는 헐렁한 구성은 실패로 간주한다.",
+      "모바일 가독성: 정보량을 줄이는 대신 글자를 키워서 가독성을 확보한다. 대제목 글자 높이는 이미지 폭의 10% 이상으로 아주 크게, 소제목과 라벨은 4.5% 이상, 설명문은 3.5% 이상으로 한다. 이미지 폭 2.5% 미만의 작은 글씨와 빽빽한 표만 피한다.",
       payload.hasProductImage
         ? "제품 사진 규칙: 첨부된 제품 사진의 제품 형태, 패키지 디자인, 라벨 문구, 색상, 로고를 그대로 유지한다. 제품을 새로 그리거나 변형하거나 다른 제품으로 바꾸지 않는다."
         : "제품 사진 규칙: 업로드된 원본의 제품컷 형태, 패키지, 색감을 그대로 보존한다. 제품을 새로 지어내지 않는다.",
+      "금지: 구매 버튼, 장바구니 버튼, '구매하기'·'지금 구매' 같은 CTA 버튼이나 화살표 버튼을 이미지 안에 그리지 않는다. 한국 상세페이지 관습에 맞춰 정보 전달에만 집중한다.",
       template.id === "S1"
         ? "통일 규칙: 이 히어로가 8장 전체의 스타일 기준이 된다. 배경 색, 포인트 색, 폰트 감각, 카드 스타일을 명확하게 잡는다."
         : "통일 규칙: 첨부된 히어로 섹션 이미지와 같은 배경 색, 포인트 색, 폰트 감각, 카드 스타일을 사용하되, 레이아웃 구성은 반드시 다르게 한다. 모든 섹션이 큰 상단 헤드라인 + 중앙 제품컷으로 반복되면 안 된다.",
@@ -415,6 +429,7 @@ function buildSections(
 
 /** 분석이 확정한 섹션 카피를 꺼낸다. 분석 실패 시에는 템플릿 목적을 그대로 쓰도록 빈 값을 준다. */
 function pickSectionCopy(analysis: unknown, sectionId: string): SectionCopy {
+  const empty: SectionCopy = { eyebrow: "", headline: "", subheadline: "", points: [], extras: [], note: "" };
   const sections = (analysis as { sections?: unknown })?.sections;
   const list = Array.isArray(sections) ? sections : [];
   const match = list.find((item) => {
@@ -422,20 +437,38 @@ function pickSectionCopy(analysis: unknown, sectionId: string): SectionCopy {
     return typeof id === "string" && id.toUpperCase() === sectionId;
   }) as Record<string, unknown> | undefined;
 
-  if (!match) {
-    return { headline: "", subheadline: "", bullets: [], cta: "" };
-  }
+  if (!match) return empty;
 
-  const bullets = Array.isArray(match.bullets)
-    ? match.bullets.filter((bullet): bullet is string => typeof bullet === "string" && bullet.trim().length > 0).slice(0, 3)
+  const points = Array.isArray(match.points)
+    ? match.points
+        .map((point) => {
+          if (typeof point === "string") return { label: point, desc: "" };
+          const record = point as Record<string, unknown>;
+          return {
+            label: typeof record?.label === "string" ? record.label.trim() : "",
+            desc: typeof record?.desc === "string" ? record.desc.trim() : ""
+          };
+        })
+        .filter((point) => point.label || point.desc)
+        .slice(0, 4)
+    : [];
+
+  const extras = Array.isArray(match.extras)
+    ? match.extras.filter((extra): extra is string => typeof extra === "string" && extra.trim().length > 0).slice(0, 5)
     : [];
 
   return {
-    headline: typeof match.headline === "string" ? match.headline.trim() : "",
-    subheadline: typeof match.subheadline === "string" ? match.subheadline.trim() : "",
-    bullets,
-    cta: typeof match.cta === "string" ? match.cta.trim() : ""
+    eyebrow: text(match.eyebrow),
+    headline: text(match.headline),
+    subheadline: text(match.subheadline),
+    points,
+    extras,
+    note: text(match.note)
   };
+}
+
+function text(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
 }
 
 async function prepareReferenceImages(files: File[]): Promise<ReferenceImage[]> {
@@ -467,16 +500,16 @@ function parseDataUrlReference(value: string): ReferenceImage | null {
 
 function sectionTemplates(count: number, startSection = 1) {
   const templates = [
-    ["S1 히어로", "3초 안에 제품, 타겟, 핵심 약속, CTA를 전달합니다.", "제품컷, 대표 USP", "제품컷을 크게 쓰는 히어로. 상단은 짧은 약속, 하단은 CTA 버튼과 핵심 배지. 상세페이지의 첫 장답게 가장 강한 비주얼."],
-    ["S2 문제 공감", "고객이 자기 상황이라고 느끼는 체크리스트를 배치합니다.", "사용 전 고민 문구", "체크 아이콘이 붙은 고민 카드 3~4개를 세로로 쌓는다. 제품컷은 작게 보조로만 사용."],
-    ["S3 베네핏 3개", "기능 나열을 체감 언어로 바꿔 기억 구조를 만듭니다.", "기능 설명, 사용 장점", "01/02/03 번호 배지가 붙은 가로 카드 3개. 각 카드에 아이콘 또는 사용 장면 사진."],
-    ["S4 USP 차별점", "경쟁 제품 대비 선택 이유를 한 문장으로 압축합니다.", "소재, 구성, 가격", "선택 이유 카드 또는 간단한 2열 비교 구조. 제품컷은 우측 하단에 작게."],
-    ["S5 근거/신뢰", "결과, 조건, 해석의 3단 구조로 신뢰를 설계합니다.", "인증, 수치, 테스트", "인증 배지와 데이터 카드 중심의 밝은 정보 패널. 하단에 CTA 버튼."],
-    ["S6 사용법", "선택지를 2~3개로 줄여 구매 후 사용 장벽을 낮춥니다.", "루틴, 구성품", "STEP 1·2·3 타임라인. 각 스텝에 사용 장면 사진을 함께 배치."],
-    ["S7 후기 카드", "실제 리뷰가 있을 때 사용감 문장 후기 카드로 구성합니다.", "리뷰, 평점", "말풍선 형태의 후기 카드 3개. 제품컷은 배경 요소로만 약하게 사용."],
-    ["S8 FAQ/오퍼", "마지막 구매 저항을 해소하고 CTA로 마무리합니다.", "배송, AS, 혜택", "Q&A 카드 3개와 하단의 큰 CTA 버튼. 마지막 행동 유도에 집중."],
-    ["S9 비교/보증", "선택 불안을 줄이는 비교표와 보증 구조를 제안합니다.", "보증, 비교 근거", "간단한 비교 매트릭스와 보증 배지 중심."],
-    ["S10 최종 CTA", "혜택과 구매 이유를 다시 압축해 마지막 행동을 유도합니다.", "오퍼, 사은품, 한정 조건", "핵심 요약 3개와 큰 구매 버튼을 하단에 강하게 배치."]
+    ["S1 히어로", "3초 안에 제품, 타겟, 핵심 약속을 전달합니다.", "제품컷, 대표 USP", "상단 알약 라벨 + 아주 큰 3줄 대제목 + 설명 2줄. 오른쪽에 실사용 장면 제품컷을 크게 배치하고, 왼쪽 아래에 원형 아이콘 + 굵은 소제목 + 설명 2줄 구조의 포인트 3개를 세로로 쌓는다. 하단에는 아이콘 타일 줄을 흰 카드로 얹는다."],
+    ["S2 문제 공감", "고객이 자기 상황이라고 느끼는 체크리스트를 배치합니다.", "사용 전 고민 문구", "상단 알약 라벨 + 질문형 대제목. 체크 아이콘이 붙은 고민 카드 3~4개를 세로로 쌓고, 각 카드 오른쪽에 상황 사진 썸네일을 넣는다. 하단에 해결책 전환 문구."],
+    ["S3 베네핏 3개", "기능 나열을 체감 언어로 바꿔 기억 구조를 만듭니다.", "기능 설명, 사용 장점", "01/02/03 번호 배지가 붙은 가로 카드 3개를 세로로 쌓는다. 각 카드는 왼쪽 텍스트(굵은 소제목 + 설명 2줄), 오른쪽 사용 장면 사진 구조."],
+    ["S4 USP 차별점", "경쟁 제품 대비 선택 이유를 압축합니다.", "소재, 구성, 가격", "선택 이유 카드 3개 또는 2열 비교 구조. 상단에 대제목, 중앙에 제품컷, 하단에 아이콘 타일 줄."],
+    ["S5 근거/신뢰", "결과, 조건, 해석의 3단 구조로 신뢰를 설계합니다.", "인증, 수치, 테스트", "'안심하고 사용하세요' 형태의 신뢰 패널. 원형 아이콘 4개를 가로로 나열하고 각각 굵은 라벨 + 설명 2줄. 하단에 작은 안내 문구 한 줄."],
+    ["S6 사용법", "구매 후 사용 장벽을 낮춥니다.", "루틴, 구성품", "STEP 01·02·03 타임라인. 각 스텝에 사용 장면 사진 + 굵은 소제목 + 설명 2줄. 하단에 구성품 아이콘 타일 줄."],
+    ["S7 후기 카드", "실제 리뷰가 있을 때 사용감 문장 후기 카드로 구성합니다.", "리뷰, 평점", "말풍선 형태의 후기 카드 3개를 세로로 쌓고 각 카드에 별점과 짧은 사용감 문장. 상단에 대제목, 하단에 요약 아이콘 타일 줄."],
+    ["S8 FAQ/안내", "마지막 구매 저항을 해소합니다.", "배송, AS, 교환", "Q&A 카드 3개를 세로로 쌓는다. 각 카드는 Q 배지 + 질문 + 답변 2줄. 하단에 배송·교환·문의 아이콘 타일 줄과 안내 문구."],
+    ["S9 비교/보증", "선택 불안을 줄이는 비교표와 보증 구조를 제안합니다.", "보증, 비교 근거", "2열 비교 카드와 보증 배지 줄."],
+    ["S10 마무리 요약", "핵심 가치를 다시 압축해 정리합니다.", "핵심 요약", "핵심 요약 카드 3개와 아이콘 타일 줄로 마무리."]
   ];
 
   return templates
