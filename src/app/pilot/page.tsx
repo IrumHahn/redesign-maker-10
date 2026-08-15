@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { renderHeroOverlay, type HeroCopy } from "@/lib/overlay-renderer";
+import { normalizeFilesForUpload } from "@/components/redesign-wizard";
 
 type Model = "openai" | "google";
 
@@ -63,9 +64,9 @@ export default function PilotPage() {
     };
   }, [textlessImage, copy]);
 
-  async function generateVariant(copyMode: "baked" | "textless") {
+  async function generateVariant(copyMode: "baked" | "textless", normalizedFiles: File[]) {
     const form = new FormData();
-    for (const file of files) form.append("files", file);
+    for (const file of normalizedFiles) form.append("files", file);
     form.append("request", request);
     form.append("model", model);
     form.append("count", "1");
@@ -84,7 +85,7 @@ export default function PilotPage() {
 
   async function runComparison() {
     if (files.length === 0) {
-      setError("기존 상세페이지 이미지를 업로드해주세요. (PDF는 파일럿에서 지원하지 않습니다)");
+      setError("기존 상세페이지 이미지 또는 PDF를 업로드해주세요.");
       return;
     }
     const key = model === "google" ? googleKey : openaiKey;
@@ -98,12 +99,16 @@ export default function PilotPage() {
     setTextlessImage("");
     setComposedImage("");
     try {
+      setPhase("원본을 이미지 생성용 PNG로 변환중");
+      const normalizedFiles = await normalizeFilesForUpload(files);
+      if (normalizedFiles.length === 0) throw new Error("업로드 파일을 참조 이미지로 변환하지 못했습니다.");
+
       setPhase("① 통이미지 히어로 생성중 (1/2)");
-      const baked = await generateVariant("baked");
+      const baked = await generateVariant("baked", normalizedFiles);
       setBakedImage(baked.imageUrl);
 
       setPhase("② 텍스트리스 배경 생성중 (2/2)");
-      const textless = await generateVariant("textless");
+      const textless = await generateVariant("textless", normalizedFiles);
       const heroCopy = (textless.analysis as { hero_copy?: Partial<HeroCopy> } | undefined)?.hero_copy;
       if (heroCopy?.headline) {
         setCopy({
@@ -145,7 +150,7 @@ export default function PilotPage() {
         <CardContent className="space-y-3">
           <Input
             type="file"
-            accept="image/png,image/jpeg,image/webp"
+            accept="image/*,.pdf"
             multiple
             onChange={(event) => setFiles(Array.from(event.target.files || []).slice(0, 4))}
           />
