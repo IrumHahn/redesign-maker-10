@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "한이룸의 상세페이지 리디자인 마법사 1.0",
+  title: "한이룸의 상세페이지 리디자인 마법사 1.5",
   description: "기존 상세페이지 이미지와 PDF를 분석해 구매전환 중심 상세페이지 이미지로 리디자인합니다.",
   icons: {
     icon: "/icon.svg",

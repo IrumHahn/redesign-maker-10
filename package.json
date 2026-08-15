@@ -16,6 +16,7 @@
     "@neondatabase/serverless": "^1.1.0",
     "class-variance-authority": "latest",
     "clsx": "latest",
+    "jszip": "^3.10.1",
     "lucide-react": "latest",
     "next": "latest",
     "openai": "^6.34.0",

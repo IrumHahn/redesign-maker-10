@@ -109,7 +109,7 @@ export default function PilotPage() {
 
       setPhase("② 텍스트리스 배경 생성중 (2/2)");
       const textless = await generateVariant("textless", normalizedFiles);
-      const heroCopy = (textless.analysis as { hero_copy?: Partial<HeroCopy> } | undefined)?.hero_copy;
+      const heroCopy = (textless.analysis as { sections?: Array<Partial<HeroCopy>> } | undefined)?.sections?.[0];
       if (heroCopy?.headline) {
         setCopy({
           headline: heroCopy.headline,
