@@ -29,7 +29,7 @@ export function DialogContent({ className, children }: { className?: string; chi
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-foreground/45 p-4" onClick={() => context.onOpenChange(false)}>
       <div
-        className={cn("w-full max-w-xl overflow-hidden rounded-md border border-border bg-card shadow-2xl", className)}
+        className={cn("w-full max-w-xl overflow-hidden rounded-3xl bg-card shadow-2xl", className)}
         onClick={(event) => event.stopPropagation()}
       >
         {children}
@@ -39,7 +39,7 @@ export function DialogContent({ className, children }: { className?: string; chi
 }
 
 export function DialogHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("border-b border-border p-4", className)} {...props} />;
+  return <div className={cn("px-5 pb-1 pt-5", className)} {...props} />;
 }
 
 export function DialogTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {

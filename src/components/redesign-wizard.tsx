@@ -3,6 +3,7 @@
 import * as React from "react";
 import {
   ChevronDown,
+  Check,
   ChevronLeft,
   ChevronRight,
   CircleHelp,
@@ -536,15 +537,15 @@ export function RedesignWizard() {
   }
 
   return (
-    <div className="grid min-h-screen grid-cols-[248px_minmax(0,1fr)] max-[1120px]:grid-cols-1">
-      <aside className="sticky top-0 h-screen border-r border-border bg-white/75 p-5 backdrop-blur max-[1120px]:static max-[1120px]:h-auto max-[1120px]:border-b max-[1120px]:border-r-0">
+    <div className="mx-auto grid min-h-screen w-full max-w-[1240px] grid-cols-[220px_minmax(0,1fr)] max-[1120px]:grid-cols-1">
+      <aside className="sticky top-0 h-screen p-5 max-[1120px]:static max-[1120px]:h-auto">
         <button
           type="button"
-          className="mb-6 flex items-center gap-3 rounded-md text-left transition hover:opacity-75"
+          className="mb-7 flex items-center gap-3 rounded-2xl text-left transition hover:opacity-75"
           onClick={() => setView("dashboard")}
           aria-label="대시보드로 이동"
         >
-          <div className="grid size-9 place-items-center rounded-md bg-foreground text-xs font-black text-background">HR</div>
+          <div className="grid size-9 place-items-center rounded-2xl bg-foreground text-xs font-black text-background">HR</div>
           <div>
             <strong className="block text-sm leading-tight">한이룸의 상세페이지<br />리디자인 마법사 1.5</strong>
           </div>
@@ -558,19 +559,19 @@ export function RedesignWizard() {
             <button
               key={id}
               className={cn(
-                "flex h-10 items-center justify-between rounded-md px-3 text-left text-sm text-muted-foreground",
-                view === id && "bg-foreground text-background shadow-sm"
+                "flex h-11 items-center justify-between rounded-2xl px-4 text-left text-sm font-medium text-muted-foreground transition hover:bg-white/70 hover:text-foreground",
+                view === id && "bg-foreground text-background hover:bg-foreground hover:text-background"
               )}
               onClick={() => setView(id as View)}
             >
               {label}
-              <span>{index}</span>
+              <span className="text-xs opacity-60">{index}</span>
             </button>
           ))}
         </nav>
         <button
           type="button"
-          className="mt-4 flex w-full items-center justify-between gap-2 rounded-md border border-border bg-white px-3 py-2.5 text-left text-xs transition hover:border-emerald-300 max-[1120px]:mt-3"
+          className="mt-3 flex w-full items-center justify-between gap-2 rounded-2xl px-4 py-3 text-left text-xs transition hover:bg-white/70"
           onClick={() => setSettingsOpen(true)}
         >
           <span className="flex items-center gap-2 text-muted-foreground">
@@ -581,7 +582,7 @@ export function RedesignWizard() {
         </button>
       </aside>
 
-      <main className="min-w-0 p-6 max-md:p-4">
+      <main className="w-full min-w-0 px-6 py-6 max-md:px-4">
         {view === "dashboard" && (
           <Dashboard
             projects={projects}
@@ -655,9 +656,9 @@ export function RedesignWizard() {
       {toast && (
         <div
           className={cn(
-            "fixed bottom-4 right-4 z-50 max-w-lg rounded-md px-4 py-3 text-sm shadow-xl",
+            "fixed bottom-4 right-4 z-50 max-w-lg rounded-2xl px-5 py-4 text-sm shadow-xl",
             isPersistentToast(toast)
-              ? "border border-destructive/30 bg-white text-foreground"
+              ? "bg-white text-foreground ring-1 ring-red-100"
               : "bg-foreground text-background"
           )}
           role="alert"
@@ -1155,7 +1156,7 @@ function Dashboard({
             projects.map((project) => (
               <div
                 key={project.id}
-                className="group grid grid-cols-[52px_minmax(0,1fr)_40px] items-center gap-3 rounded-md border border-border bg-white p-3 transition hover:border-emerald-200 hover:bg-emerald-50/30"
+                className="group grid grid-cols-[44px_minmax(0,1fr)_36px] items-center gap-3 rounded-2xl p-3 transition hover:bg-muted/50"
               >
                 <button
                   type="button"
@@ -1185,7 +1186,7 @@ function Dashboard({
               </div>
             ))
           ) : (
-            <div className="grid min-h-48 place-items-center rounded-md border border-dashed border-border bg-white/60 p-6 text-center">
+            <div className="grid min-h-44 place-items-center rounded-2xl bg-muted/40 p-6 text-center">
               <div>
                 <ImageIcon className="mx-auto mb-3 size-8 text-muted-foreground" />
                 <strong className="text-sm">아직 작업한 리디자인 작업이 없습니다.</strong>
@@ -1241,101 +1242,103 @@ function Workspace(props: {
     generating,
     onGenerate
   } = props;
-  const [optionsOpen, setOptionsOpen] = React.useState(false);
 
   return (
-    <section className="mx-auto max-w-3xl">
+    <section className="mx-auto max-w-xl">
       <Topbar eyebrow="리디자인 작업" />
 
-      <div className="grid gap-4">
-        <Card>
-          <CardHeader>
-            <div>
-              <CardTitle>1. 기존 상세페이지</CardTitle>
-              <CardDescription>이미지 또는 PDF를 올리면 원본 정보와 전환 저해 요소를 분석합니다.</CardDescription>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <UploadArea
-              inputRef={inputRef}
-              files={files}
-              setFiles={setFiles}
-              icon={<Upload className="size-6" />}
-              title="이미지 또는 PDF 올리기"
-              hint="원본 제품컷, 수치, 리뷰, 인증, 오퍼 문구를 최대한 보존합니다."
-            />
-          </CardContent>
-        </Card>
+      <Card className="p-2">
+        <UploadArea
+          inputRef={inputRef}
+          files={files}
+          setFiles={setFiles}
+          title="기존 상세페이지 올리기"
+          hint="이미지 또는 PDF · 원본 제품컷과 정보를 최대한 보존합니다"
+        />
 
-        <Card>
-          <CardHeader>
-            <div>
-              <CardTitle>2. 제품 사진 <span className="text-xs font-normal text-muted-foreground">선택</span></CardTitle>
-              <CardDescription>깨끗한 제품컷을 함께 올리면 제품 모양과 패키지를 그대로 유지합니다.</CardDescription>
-            </div>
-          </CardHeader>
-          <CardContent>
+        <div className="mt-2 grid gap-1">
+          <Disclosure title="제품 사진" summary={productFiles.length > 0 ? `${productFiles.length}장` : "선택"}>
+            <p className="mb-3 text-xs leading-relaxed text-muted-foreground">
+              깨끗한 제품컷을 함께 올리면 제품 모양과 패키지를 그대로 유지합니다. 누끼컷이나 정면 사진 1~2장이면 충분합니다.
+            </p>
             <UploadArea
               inputRef={productInputRef}
               files={productFiles}
               setFiles={setProductFiles}
-              icon={<FileImage className="size-6" />}
               title="제품 사진 올리기"
-              hint="누끼컷이나 정면 제품 사진 1~2장이면 충분합니다."
+              hint=""
               accept="image/*"
               compact
             />
-          </CardContent>
-        </Card>
+          </Disclosure>
 
-        <Card>
-          <CardHeader>
-            <div>
-              <CardTitle>3. 요청사항</CardTitle>
-              <CardDescription>강조하고 싶은 방향을 자유롭게 적어주세요.</CardDescription>
+          <Disclosure title="요청사항" summary={request.trim() ? "작성됨" : "기본값"}>
+            <Textarea value={request} onChange={(event) => setRequest(event.target.value)} className="bg-muted/40" />
+          </Disclosure>
+
+          <Disclosure
+            title="생성 옵션"
+            summary={`${models[selectedModel].label.replace("Google ", "")} · ${channel} · ${count === 1 ? "1장" : "8장"}`}
+          >
+            <div className="grid gap-4">
+              <OptionGroup
+                label="이미지 생성 모델"
+                value={selectedModel}
+                options={[["openai", "OpenAI Image 2.0"], ["google", "Google Nano Banana 2"]]}
+                onChange={(value) => setSelectedModel(value as Model)}
+              />
+              <OptionGroup
+                label="결과 장수"
+                value={String(count)}
+                options={[["1", "히어로 1장 먼저"], ["8", "8장 한 번에"]]}
+                onChange={(value) => setCount(Number(value))}
+              />
+              <OptionGroup label="출력 비율" value={ratio} options={[["9:16", "9:16"], ["1080×1920", "1080×1920"]]} onChange={setRatio} />
+              <ChannelOptionGroup value={channel} onChange={setChannel} />
             </div>
-          </CardHeader>
-          <CardContent className="grid gap-3">
-            <Textarea value={request} onChange={(event) => setRequest(event.target.value)} />
+          </Disclosure>
+        </div>
+      </Card>
 
-            <button
-              type="button"
-              className="flex items-center justify-between rounded-md px-1 py-2 text-left text-xs font-bold text-muted-foreground transition hover:text-foreground"
-              onClick={() => setOptionsOpen((current) => !current)}
-            >
-              <span>
-                생성 옵션 · {models[selectedModel].label} · {channel} · {count === 1 ? "히어로 1장" : "8장"}
-              </span>
-              <ChevronDown className={cn("size-4 transition-transform", optionsOpen && "rotate-180")} />
-            </button>
-
-            {optionsOpen ? (
-              <div className="grid gap-4 rounded-md border border-border bg-muted/30 p-3">
-                <OptionGroup
-                  label="이미지 생성 모델"
-                  value={selectedModel}
-                  options={[["openai", "OpenAI Image 2.0"], ["google", "Google Nano Banana 2"]]}
-                  onChange={(value) => setSelectedModel(value as Model)}
-                />
-                <OptionGroup
-                  label="결과 장수"
-                  value={String(count)}
-                  options={[["1", "히어로 1장 먼저"], ["8", "8장 한 번에"]]}
-                  onChange={(value) => setCount(Number(value))}
-                />
-                <OptionGroup label="출력 비율" value={ratio} options={[["9:16", "9:16"], ["1080×1920", "1080×1920"]]} onChange={setRatio} />
-                <ChannelOptionGroup value={channel} onChange={setChannel} />
-              </div>
-            ) : null}
-
-            <Button className="h-11" onClick={() => onGenerate()} disabled={generating || files.length === 0}>
-              {generating ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-              리디자인 생성
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+      <Button className="mt-4 h-12 w-full text-base" onClick={() => onGenerate()} disabled={generating || files.length === 0}>
+        {generating ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+        리디자인 생성
+      </Button>
+      {files.length === 0 ? (
+        <p className="mt-2 text-center text-xs text-muted-foreground">기존 상세페이지를 올리면 생성할 수 있습니다.</p>
+      ) : null}
     </section>
+  );
+}
+
+/** 선택 입력을 접어두는 한 줄 행. 열림 상태에서만 내용을 보여준다. */
+function Disclosure({
+  title,
+  summary,
+  children
+}: {
+  title: string;
+  summary: string;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = React.useState(false);
+
+  return (
+    <div className={cn("rounded-2xl transition", open && "bg-muted/40")}>
+      <button
+        type="button"
+        className="flex w-full items-center justify-between gap-3 rounded-2xl px-4 py-3 text-left transition hover:bg-muted/40"
+        onClick={() => setOpen((current) => !current)}
+        aria-expanded={open}
+      >
+        <span className="text-sm font-semibold">{title}</span>
+        <span className="flex items-center gap-2 text-xs text-muted-foreground">
+          {open ? null : <span className="truncate">{summary}</span>}
+          <ChevronDown className={cn("size-4 shrink-0 transition-transform", open && "rotate-180")} />
+        </span>
+      </button>
+      {open ? <div className="px-4 pb-4">{children}</div> : null}
+    </div>
   );
 }
 
@@ -1343,7 +1346,6 @@ function UploadArea({
   inputRef,
   files,
   setFiles,
-  icon,
   title,
   hint,
   accept = "image/*,.pdf",
@@ -1352,12 +1354,13 @@ function UploadArea({
   inputRef: React.RefObject<HTMLInputElement | null>;
   files: File[];
   setFiles: (files: File[]) => void;
-  icon: React.ReactNode;
   title: string;
   hint: string;
   accept?: string;
   compact?: boolean;
 }) {
+  const [dragging, setDragging] = React.useState(false);
+
   function acceptFiles(list: File[]) {
     setFiles(list.filter((file) => file.type.startsWith("image/") || file.type === "application/pdf"));
   }
@@ -1367,22 +1370,29 @@ function UploadArea({
       <button
         type="button"
         className={cn(
-          "grid w-full place-items-center rounded-md border border-dashed border-emerald-300 bg-white/60 p-6 text-center transition hover:bg-emerald-50/40",
-          compact ? "min-h-28" : "min-h-40"
+          "grid w-full place-items-center rounded-2xl bg-muted/50 p-6 text-center transition hover:bg-muted",
+          compact ? "min-h-24" : "min-h-52",
+          dragging && "bg-emerald-50 ring-2 ring-emerald-200",
+          files.length > 0 && "bg-emerald-50/60"
         )}
         onClick={() => inputRef.current?.click()}
-        onDragOver={(event) => event.preventDefault()}
+        onDragOver={(event) => {
+          event.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
         onDrop={(event) => {
           event.preventDefault();
+          setDragging(false);
           acceptFiles(Array.from(event.dataTransfer.files));
         }}
       >
         <span>
-          <span className="mx-auto mb-2 grid size-11 place-items-center rounded-md border border-border bg-white text-emerald-600">
-            {icon}
+          <span className={cn("mx-auto mb-3 grid place-items-center rounded-2xl bg-white text-emerald-600", compact ? "size-10" : "size-14")}>
+            {files.length > 0 ? <Check className={compact ? "size-5" : "size-6"} /> : <Upload className={compact ? "size-5" : "size-6"} />}
           </span>
-          <strong className="text-sm">{title}</strong>
-          <span className="mt-1 block text-xs text-muted-foreground">{hint}</span>
+          <strong className="text-sm">{files.length > 0 ? `${files.length}개 파일 선택됨` : title}</strong>
+          {hint && files.length === 0 ? <span className="mt-1 block text-xs text-muted-foreground">{hint}</span> : null}
         </span>
       </button>
       <input
@@ -1394,11 +1404,11 @@ function UploadArea({
         onChange={(event) => acceptFiles(Array.from(event.target.files || []))}
       />
       {files.length > 0 && (
-        <div className="mt-3 flex flex-wrap items-center gap-2">
+        <div className="mt-2 flex flex-wrap items-center gap-2 px-2">
           {files.map((file) => (
             <Badge key={file.name} variant="default">
               {file.type === "application/pdf" ? <FileText className="mr-1 size-3" /> : <FileImage className="mr-1 size-3" />}
-              {file.name}
+              <span className="max-w-40 truncate">{file.name}</span>
             </Badge>
           ))}
           <button
@@ -1441,7 +1451,7 @@ function ChannelOptionGroup({ value, onChange }: { value: string; onChange: (val
         <label className="block text-xs font-bold text-muted-foreground">판매 채널</label>
         <button
           type="button"
-          className="grid size-6 place-items-center rounded-full border border-border bg-white text-muted-foreground transition hover:border-emerald-300 hover:text-emerald-700"
+          className="grid size-5 place-items-center rounded-full text-muted-foreground transition hover:text-emerald-700"
           onClick={() => setOpen(true)}
           aria-label="판매 채널 설명 보기"
         >
@@ -1452,7 +1462,7 @@ function ChannelOptionGroup({ value, onChange }: { value: string; onChange: (val
         {channels.map((channel) => (
           <button
             key={channel.name}
-            className={cn("min-h-9 rounded-md border border-border bg-white px-2 text-xs font-bold", value === channel.name && "bg-foreground text-background")}
+            className={cn("min-h-10 rounded-2xl bg-white px-3 text-xs font-bold text-muted-foreground transition hover:bg-white/60", value === channel.name && "bg-foreground text-background hover:bg-foreground")}
             onClick={() => onChange(channel.name)}
           >
             {channel.name}
@@ -1469,12 +1479,12 @@ function ChannelOptionGroup({ value, onChange }: { value: string; onChange: (val
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 p-4">
-            <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm leading-relaxed text-emerald-900">
+            <div className="rounded-2xl bg-emerald-50 p-4 text-sm leading-relaxed text-emerald-900">
               채널별 고객의 구매 맥락이 다르기 때문에, 같은 상품이라도 첫 화면의 정보 우선순위와 설득 흐름이 달라집니다.
             </div>
             <div className="grid grid-cols-2 gap-3 max-md:grid-cols-1">
               {channels.map((channel) => (
-                <div key={channel.name} className="rounded-md border border-border bg-white p-4">
+                <div key={channel.name} className="rounded-2xl bg-muted/40 p-4">
                   <h3 className="mb-3 text-base font-bold">{channel.name}</h3>
                   <ul className="grid gap-2 text-sm leading-relaxed text-muted-foreground">
                     {channel.points.map((point) => (
@@ -1594,7 +1604,7 @@ function Results({
         </Card>
       ) : null}
 
-      <div className="grid grid-cols-4 gap-3 max-2xl:grid-cols-3 max-xl:grid-cols-2 max-sm:grid-cols-1">
+      <div className="grid grid-cols-4 gap-3 max-xl:grid-cols-3 max-md:grid-cols-2">
         {project.sections.map((section, index) => (
           <SectionResultCard
             key={section.id}
@@ -1656,8 +1666,8 @@ function SectionResultCard({
   }
 
   return (
-    <Card className="group overflow-hidden shadow-none">
-      <div className="relative aspect-[9/16] border-b border-border bg-muted">
+    <Card className="group overflow-hidden">
+      <div className="relative aspect-[9/16] bg-muted">
         {activeRevision?.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={activeRevision.imageUrl} alt={`${shortName} ${activeRevision.label}`} className="h-full w-full object-cover" />
@@ -1667,7 +1677,7 @@ function SectionResultCard({
 
         <button
           type="button"
-          className="absolute right-2 top-2 grid size-8 place-items-center rounded-md bg-white/90 text-foreground opacity-0 shadow-sm transition hover:bg-white group-hover:opacity-100 focus-visible:opacity-100 disabled:hidden"
+          className="absolute right-2 top-2 grid size-8 place-items-center rounded-full bg-white/90 text-foreground opacity-0 shadow-sm transition hover:bg-white group-hover:opacity-100 focus-visible:opacity-100 disabled:hidden"
           onClick={() => activeRevision?.imageUrl && downloadDataUrl(activeRevision.imageUrl, buildImageFileName(projectTitle, section, index, activeRevision.label))}
           disabled={!activeRevision?.imageUrl}
           aria-label={`${shortName} 이미지 다운로드`}
@@ -1700,12 +1710,12 @@ function SectionResultCard({
         ) : null}
       </div>
 
-      <div className="flex items-center justify-between gap-2 px-3 py-2">
+      <div className="flex items-center justify-between gap-2 px-4 py-2.5">
         <span className="min-w-0 truncate text-xs font-semibold" title={section.purpose}>{shortName}</span>
         <button
           type="button"
           className={cn(
-            "shrink-0 rounded-md px-2 py-1 text-xs font-bold text-muted-foreground transition hover:bg-muted hover:text-foreground",
+            "shrink-0 rounded-full px-2.5 py-1 text-xs font-bold text-muted-foreground transition hover:bg-muted hover:text-foreground",
             editOpen && "bg-muted text-foreground"
           )}
           onClick={() => setEditOpen((current) => !current)}
@@ -1715,7 +1725,7 @@ function SectionResultCard({
       </div>
 
       {editOpen ? (
-        <div className="grid gap-2 border-t border-border bg-muted/30 p-3">
+        <div className="grid gap-2 bg-muted/40 p-3">
           <Textarea
             value={editRequest}
             onChange={(event) => setEditRequest(event.target.value)}
@@ -1727,7 +1737,7 @@ function SectionResultCard({
               <button
                 key={label}
                 type="button"
-                className="rounded-full border border-border bg-white px-2 py-1 text-[11px] font-bold text-muted-foreground transition hover:border-emerald-300 hover:text-emerald-700"
+                className="rounded-full bg-white px-2.5 py-1 text-[11px] font-bold text-muted-foreground transition hover:text-emerald-700"
                 onClick={() => setEditRequest((current) => (current ? `${current}\n${text}` : text))}
               >
                 {label}
@@ -1793,7 +1803,7 @@ function GenerationProgressPanel({
 
   return (
     <div className="fixed inset-0 z-40 grid place-items-center bg-white/55 p-4 backdrop-blur-sm">
-      <div className="max-h-[calc(100vh-2rem)] w-full max-w-3xl overflow-y-auto rounded-md border border-emerald-200 bg-white/95 p-5 shadow-2xl">
+      <div className="max-h-[calc(100vh-2rem)] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white/95 p-6 shadow-2xl">
         <div className="mb-3 flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-bold text-emerald-700">생성 진행 중</p>
@@ -1814,8 +1824,8 @@ function GenerationProgressPanel({
           />
         </div>
         <div className="mt-3 grid grid-cols-[160px_minmax(0,1fr)] gap-3 text-sm max-sm:grid-cols-1">
-          <div className="rounded-md bg-emerald-50 px-3 py-2 font-bold text-emerald-800">{progress.phase}</div>
-          <div className="rounded-md border border-border bg-white px-3 py-2 leading-relaxed text-muted-foreground">
+          <div className="rounded-2xl bg-emerald-50 px-4 py-2.5 font-bold text-emerald-800">{progress.phase}</div>
+          <div className="rounded-2xl bg-muted/60 px-4 py-2.5 leading-relaxed text-muted-foreground">
             {isLongWait && modelLabel.includes("OpenAI")
               ? "OpenAI Image 2.0은 이미지 편집 요청이 2분 이상 걸릴 수 있습니다. 특히 긴 상세페이지 캡처나 참조 이미지가 여러 장이면 응답 시간이 길어질 수 있어요."
               : progress.tip}
@@ -1828,7 +1838,7 @@ function GenerationProgressPanel({
           </Button>
         </div>
         {showVideo ? (
-          <div className="mt-4 rounded-md border border-border bg-white p-3">
+          <div className="mt-4 rounded-2xl bg-muted/40 p-4">
             <div className="mb-2 flex items-center justify-between gap-3 max-sm:flex-col max-sm:items-start">
               <div>
                 <p className="text-sm font-bold">기다리는 동안 한이룸 유튜브 영상 함께 봐요!</p>
@@ -1843,7 +1853,7 @@ function GenerationProgressPanel({
                 채널 열기 <ExternalLink className="size-3" />
               </a>
             </div>
-            <div className="aspect-video overflow-hidden rounded-md bg-foreground">
+            <div className="aspect-video overflow-hidden rounded-2xl bg-foreground">
               <iframe
                 className="h-full w-full"
                 src={`https://www.youtube.com/embed/${video.id}`}
@@ -1914,7 +1924,7 @@ function OptionGroup({
         {options.map(([optionValue, optionLabel]) => (
           <button
             key={optionValue}
-            className={cn("min-h-9 rounded-md border border-border bg-white px-2 text-xs font-bold", value === optionValue && "bg-foreground text-background")}
+            className={cn("min-h-10 rounded-2xl bg-white px-3 text-xs font-bold text-muted-foreground transition hover:bg-white/60", value === optionValue && "bg-foreground text-background hover:bg-foreground")}
             onClick={() => onChange(optionValue)}
           >
             {optionLabel}
@@ -1927,9 +1937,9 @@ function OptionGroup({
 
 function MiniThumb() {
   return (
-    <div className="relative h-[68px] w-[52px] overflow-hidden rounded-md border border-border bg-muted">
-      <div className="absolute left-2 right-2 top-2 h-4 rounded bg-foreground" />
-      <div className="absolute bottom-2 left-2 right-2 h-7 rounded-md bg-gradient-to-br from-emerald-500 to-lime-300" />
+    <div className="relative h-[56px] w-[44px] overflow-hidden rounded-xl bg-muted">
+      <div className="absolute left-1.5 right-1.5 top-1.5 h-3 rounded-md bg-foreground/80" />
+      <div className="absolute bottom-1.5 left-1.5 right-1.5 h-6 rounded-lg bg-gradient-to-br from-emerald-500 to-lime-300" />
     </div>
   );
 }

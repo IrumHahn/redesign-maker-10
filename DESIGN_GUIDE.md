@@ -157,16 +157,19 @@ body {
 
 - 너비: 240-264px
 - 배경: `white/75` + `backdrop-blur`
-- 경계: 오른쪽 1px `border`
-- 현재 메뉴: 차콜 배경, 오프화이트 텍스트
-- 연결 상태 카드: API, 서버, 지식 연결 상태를 작은 배지로 표시
+- 경계선 없이 배경색만으로 구분한다
+- 현재 메뉴: 차콜 배경, 오프화이트 텍스트, `rounded-2xl`
+- 하단에 API 키 상태 한 줄
 
 ### 카드와 패널
 
-- radius는 `rounded-md`를 기본으로 한다.
-- 큰 radius, 둥근 말풍선형 UI, 중첩 카드 사용을 피한다.
-- 카드 안에 또 카드가 필요하면 실제 반복 아이템, 업로드 파일, 결과 섹션처럼 의미 있는 단위일 때만 사용한다.
-- 그림자보다 경계선과 여백으로 구조를 만든다.
+> 1.5부터 부드러운 라운딩 방향으로 변경했다 (2026-08-16, 사용자 지시). 이전의 `rounded-md` 8px 이하 규칙은 폐기.
+
+- 카드 radius는 `rounded-3xl`, 내부 블록과 입력은 `rounded-2xl`, 버튼과 칩은 `rounded-full`을 기본으로 한다.
+- **경계선을 쓰지 않는다.** 구조는 흰 카드 + 아주 옅은 그림자 + 배경 색조 차이로 만든다.
+- 입력 필드는 테두리 없이 `bg-muted/60` 채움으로 두고, 포커스 시 흰 배경 + 링으로 바꾼다.
+- 화면 하나에 카드는 최대 2~3개. 선택 입력은 카드를 늘리지 말고 접기(Disclosure) 한 줄로 넣는다.
+- 카드 그림자: `shadow-[0_1px_2px_rgba(23,26,31,0.03),0_12px_32px_-16px_rgba(23,26,31,0.12)]`
 
 ## 7. 컴포넌트 규칙
 
@@ -176,13 +179,13 @@ body {
 
 ```tsx
 const buttonBase =
-  "inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-md border border-transparent px-4 text-sm font-semibold transition-colors";
+  "inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold transition-colors";
 ```
 
 - Primary: `bg-foreground text-background`
-- Secondary: `border-border bg-card text-foreground`
-- Accent: `border-emerald-200 bg-emerald-50 text-emerald-800`
-- Destructive: `border-red-200 bg-red-50 text-red-700`
+- Secondary: `bg-muted text-foreground`
+- Accent: `bg-emerald-50 text-emerald-800`
+- Destructive: `bg-red-50 text-red-700`
 - Ghost: `text-muted-foreground hover:bg-muted`
 
 ### 배지
@@ -295,7 +298,7 @@ AI 작업이 오래 걸리는 제품에서는 다음 상태를 반드시 제공�
 - [ ] 파비콘은 글자가 아니라 시리즈 심볼 중심인가?
 - [ ] 첫 화면이 랜딩이 아니라 실제 작업 대시보드인가?
 - [ ] 배경, 카드, 버튼, 배지 컬러 토큰을 동일하게 적용했는가?
-- [ ] 카드 radius가 8px 이하인가?
+- [ ] 카드 radius가 `rounded-3xl`이고 경계선 대신 그림자로 구조를 만들었는가?\n- [ ] 화면 폭이 넓어져도 콘텐츠가 늘어지지 않게 최대 폭(1240px)이 걸려 있는가?
 - [ ] 불필요한 기술 스택명이 사용자 UI에 노출되지 않는가?
 - [ ] 빈 상태, 로딩, 오류, 저장 상태가 모두 있는가?
 - [ ] 오류 메시지는 사용자가 읽을 수 있을 만큼 유지되는가?
@@ -321,9 +324,14 @@ export const HANIRUM_MAGIC_BRAND = {
     destructive: "#dc2626"
   },
   radius: {
-    control: "6px",
-    card: "6px",
-    modal: "6px"
+    control: "9999px",
+    field: "16px",
+    card: "24px",
+    modal: "24px"
+  },
+  layout: {
+    shellMaxWidth: "1240px",
+    sidebarWidth: "220px"
   }
 } as const;
 ```
