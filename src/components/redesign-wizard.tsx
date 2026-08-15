@@ -1544,8 +1544,24 @@ function Results({
   }
 
   const showRollout = project.sections.length < 8;
+  const heroOnly = showRollout && project.sections.length === 1;
   const title = projectDisplayTitle(project);
   const downloadableSections = project.sections.filter((section) => section.imageUrl);
+  const existingIds = new Set(project.sections.map((section) => section.id));
+  const missingSectionNames = plannedSections.filter(([id]) => !existingIds.has(id)).map(([, name]) => name);
+  const sectionCards = project.sections.map((section, index) => (
+    <SectionResultCard
+      key={section.id}
+      section={section}
+      index={index}
+      projectTitle={title}
+      defaultModel={project.model}
+      onEditSection={onEditSection}
+      onOpenViewer={() => setViewerIndex(index)}
+      editing={editingSectionId === section.id}
+      disabled={generating}
+    />
+  ));
 
   async function downloadZip() {
     if (downloadableSections.length === 0) {
@@ -1586,42 +1602,34 @@ function Results({
         </Button>
       </Topbar>
 
-      {showRollout ? (
-        <Card className="mb-4">
-          <CardContent className="grid gap-3 p-4">
-            <div>
-              <strong className="text-sm">히어로를 확인했다면 나머지 7장을 이어서 만드세요.</strong>
-              <p className="mt-1 text-xs text-muted-foreground">반영할 방향이 있으면 적어주세요. 카피 설계와 히어로 스타일은 그대로 이어집니다.</p>
-            </div>
-            <Textarea
-              value={rolloutRequest}
-              onChange={(event) => setRolloutRequest(event.target.value)}
-              placeholder="예: 카피가 조금 과장되어 보여요. 나머지는 근거와 리뷰 중심으로 차분하게 해주세요."
-              className="min-h-16"
-            />
-            <Button onClick={onGenerateRest} disabled={generating}>
-              {generating ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-              나머지 만들기
-            </Button>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      <div className="grid grid-cols-4 gap-3 max-xl:grid-cols-3 max-md:grid-cols-2">
-        {project.sections.map((section, index) => (
-          <SectionResultCard
-            key={section.id}
-            section={section}
-            index={index}
-            projectTitle={title}
-            defaultModel={project.model}
-            onEditSection={onEditSection}
-            onOpenViewer={() => setViewerIndex(index)}
-            editing={editingSectionId === section.id}
-            disabled={generating}
+      {heroOnly ? (
+        // 히어로 1장만 있을 때는 결과를 왼쪽에 크게 보여주고, 남는 오른쪽 공간에 다음 단계를 붙인다.
+        <div className="grid grid-cols-[minmax(0,300px)_minmax(0,1fr)] items-start gap-5 max-md:grid-cols-1">
+          {sectionCards}
+          <RolloutPanel
+            missingSections={missingSectionNames}
+            rolloutRequest={rolloutRequest}
+            setRolloutRequest={setRolloutRequest}
+            onGenerateRest={onGenerateRest}
+            generating={generating}
           />
-        ))}
-      </div>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-4 gap-3 max-xl:grid-cols-3 max-md:grid-cols-2">{sectionCards}</div>
+          {showRollout ? (
+            <div className="mt-4">
+              <RolloutPanel
+                missingSections={missingSectionNames}
+                rolloutRequest={rolloutRequest}
+                setRolloutRequest={setRolloutRequest}
+                onGenerateRest={onGenerateRest}
+                generating={generating}
+              />
+            </div>
+          ) : null}
+        </>
+      )}
 
       {viewerIndex !== null ? (
         <ImageViewer
@@ -1751,6 +1759,70 @@ function ImageViewer({
         </>
       ) : null}
     </div>
+  );
+}
+
+const plannedSections: Array<[string, string]> = [
+  ["S1", "히어로"],
+  ["S2", "문제 공감"],
+  ["S3", "베네핏 3개"],
+  ["S4", "USP 차별점"],
+  ["S5", "근거·신뢰"],
+  ["S6", "사용법"],
+  ["S7", "후기"],
+  ["S8", "FAQ·안내"]
+];
+
+/** 아직 만들지 않은 섹션을 이어서 생성하는 패널. */
+function RolloutPanel({
+  missingSections,
+  rolloutRequest,
+  setRolloutRequest,
+  onGenerateRest,
+  generating
+}: {
+  missingSections: string[];
+  rolloutRequest: string;
+  setRolloutRequest: (request: string) => void;
+  onGenerateRest: () => void;
+  generating: boolean;
+}) {
+  return (
+    <Card>
+      <CardContent className="grid gap-4">
+        <div>
+          <strong className="text-base">이어서 나머지 {missingSections.length}장을 만드세요</strong>
+          <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+            히어로에서 확정한 카피 설계와 디자인 스타일을 그대로 이어받습니다.
+          </p>
+        </div>
+
+        {missingSections.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5">
+            {missingSections.map((name) => (
+              <span key={name} className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-bold text-muted-foreground">
+                {name}
+              </span>
+            ))}
+          </div>
+        ) : null}
+
+        <div>
+          <label className="mb-2 block text-xs font-bold text-muted-foreground">반영할 방향 (선택)</label>
+          <Textarea
+            value={rolloutRequest}
+            onChange={(event) => setRolloutRequest(event.target.value)}
+            placeholder="예: 카피가 조금 과장되어 보여요. 나머지는 근거와 리뷰 중심으로 차분하게 해주세요."
+            className="min-h-20 bg-muted/40"
+          />
+        </div>
+
+        <Button className="h-11" onClick={onGenerateRest} disabled={generating}>
+          {generating ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+          나머지 만들기
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
 

@@ -107,6 +107,7 @@
 - **경계선 사용 금지** — 흰 카드 + 옅은 그림자 + 배경 색조로만 구조 표현
 - 전체 셸 `max-w-[1240px]` 중앙 정렬 (와이드 모니터 늘어짐 방지). 워크스페이스는 `max-w-xl`
 - 워크스페이스: 기존 상세페이지 업로드만 메인, 제품 사진·요청사항·생성 옵션은 접기 한 줄(Disclosure)에 요약값 표시
+- 결과 화면: 히어로 1장일 때는 `[이미지 300px | 나머지 만들기 패널]` 2단으로 배치해 결과를 먼저 보게 하고 남는 오른쪽을 채운다. 2장 이상이면 그리드 먼저, 패널은 그 아래. 패널에는 아직 안 만든 섹션 이름을 칩으로 노출
 - 결과 썸네일 클릭 → 전체화면 뷰어(좌우 방향키·ESC, 원본 크기 토글, 다운로드). 뷰어 이미지 높이는 `max-h-[calc(100vh-7.5rem)]`로 고정 — `max-h-full`은 grid 부모에서 동작하지 않아 넘침
 - DESIGN_GUIDE.md의 이전 "radius 8px 이하" 규칙은 폐기됨. 되돌리지 말 것
 - 검증 방법: `"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless --screenshot=out.png --window-size=1500,1000 http://localhost:3002/` 로 실제 화면 캡처해 확인
