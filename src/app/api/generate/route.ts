@@ -11,6 +11,14 @@ const MAX_REFERENCE_IMAGES = 4;
 
 type Provider = "openai" | "google";
 
+/**
+ * restructure: 원본 근거를 지키되 구매전환 흐름(S1~S8)으로 재구성한다.
+ * preserve: 원본의 섹션 구성과 문구를 그대로 두고 디자인과 레이아웃만 새로 만든다.
+ */
+type RedesignMode = "restructure" | "preserve";
+
+const MAX_PRESERVE_SECTIONS = 10;
+
 type ReferenceImage = {
   name: string;
   mimeType: string;
@@ -58,9 +66,10 @@ export async function POST(request: NextRequest) {
     const googleKey = String(form.get("googleKey") || "");
     const heroImageUrl = String(form.get("heroImageUrl") || "");
     const blueprintJson = String(form.get("blueprint") || "");
+    const mode: RedesignMode = String(form.get("mode") || "restructure") === "preserve" ? "preserve" : "restructure";
     const apiKey = provider === "google" ? googleKey : openaiKey;
 
-    console.info(`[generate] request provider=${provider} count=${count} startSection=${startSection} files=${files.length} productFiles=${productFiles.length} channel=${channel}`);
+    console.info(`[generate] request provider=${provider} mode=${mode} count=${count} startSection=${startSection} files=${files.length} productFiles=${productFiles.length} channel=${channel}`);
 
     if (!apiKey) {
       return NextResponse.json(
@@ -83,11 +92,12 @@ export async function POST(request: NextRequest) {
     }
 
     const modelInfo = modelMeta(provider);
-    const payload = {
+    const payload: AnalysisPayload = {
       request: requestText,
       rolloutRequest,
       options: { channel, ratio, count },
-      hasProductImage: productReferences.length > 0
+      hasProductImage: productReferences.length > 0,
+      mode
     };
 
     // 이어서 생성할 때는 첫 요청에서 확정한 카피 블루프린트를 그대로 재사용한다(8장 카피 일관성 유지).
@@ -111,6 +121,23 @@ export async function POST(request: NextRequest) {
       console.info(`[generate] analysis done job=${jobId}`);
     }
 
+    // 원본 구성 유지 모드에서는 총 장수를 원본에서 읽어낸 섹션 수가 결정한다.
+    const sectionTotal = mode === "preserve" ? blueprintSectionCount(analysis) : 8;
+    if (mode === "preserve") {
+      if (sectionTotal === 0) {
+        return NextResponse.json(
+          { error: "원본 상세페이지의 섹션 구성을 읽지 못했습니다. 원본 이미지를 다시 올리고 시도해주세요." },
+          { status: 502 }
+        );
+      }
+      if (startSection > sectionTotal) {
+        return NextResponse.json(
+          { error: `원본 구성 유지 모드에서는 총 ${sectionTotal}장까지만 생성됩니다.` },
+          { status: 400 }
+        );
+      }
+    }
+
     const sections = buildSections(count, startSection, payload, analysis, modelInfo);
     const projectTitle = inferProjectTitle(analysis, channel);
 
@@ -125,9 +152,11 @@ export async function POST(request: NextRequest) {
       });
       try {
         console.info(`[generate] ${provider} ${section.section_id} start (${index + 1}/${sections.length}) refs=${references.length}`);
-        const image = provider === "google"
-          ? await generateGoogleImage({ apiKey, prompt: section.promptText, references })
-          : await generateOpenAIImage({ apiKey, prompt: section.promptText, references });
+        const image = await withTransientRetry(section.section_id, () => (
+          provider === "google"
+            ? generateGoogleImage({ apiKey, prompt: section.promptText, references })
+            : generateOpenAIImage({ apiKey, prompt: section.promptText, references })
+        ));
 
         generatedSections.push({
           ...section,
@@ -156,6 +185,8 @@ export async function POST(request: NextRequest) {
         id: jobId,
         title: projectTitle,
         channel,
+        mode,
+        sectionTotal,
         model: provider,
         modelLabel: modelInfo.label,
         modelId: modelInfo.id,
@@ -184,6 +215,7 @@ type AnalysisPayload = {
   rolloutRequest: string;
   options: { channel: string; ratio: string; count: number };
   hasProductImage: boolean;
+  mode: RedesignMode;
 };
 
 async function analyzeSource({
@@ -199,7 +231,55 @@ async function analyzeSource({
   payload: AnalysisPayload;
   modelInfo: ReturnType<typeof modelMeta>;
 }) {
-  const prompt = [
+  const prompt = payload.mode === "preserve"
+    ? preserveAnalysisPrompt(payload, modelInfo)
+    : restructureAnalysisPrompt(payload, modelInfo);
+
+  try {
+    if (provider === "google") {
+      return await analyzeWithGoogle({ apiKey, prompt, references });
+    }
+    return await analyzeWithOpenAI({ apiKey, prompt, references });
+  } catch (error) {
+    return {
+      product_inferred: { category: "업로드 자료 기반 추정", confidence: 0.4 },
+      diagnostic_summary: `AI 분석 호출 실패: ${error instanceof Error ? error.message : "unknown"}`,
+      strategy: "원본 자료의 제품컷/USP/근거를 보존하고, 8장 섹션 구조로 전환 설계를 적용합니다.",
+      sections: [],
+      compliance_notes: "근거 없는 수치, 리뷰, 인증, 효과 표현은 생성하지 않습니다."
+    };
+  }
+}
+
+/** 원본 구성 유지 모드: 카피를 새로 쓰지 않고 원본 섹션과 문구를 그대로 전사한다. */
+function preserveAnalysisPrompt(payload: AnalysisPayload, modelInfo: ReturnType<typeof modelMeta>) {
+  return [
+    "너는 한국 이커머스 상세페이지 원본 전사기다.",
+    "업로드된 기존 상세페이지를 위에서 아래로 읽으면서, 실제 섹션 구성과 문구를 그대로 옮긴 한국어 JSON을 작성하라.",
+    "이 작업은 카피라이팅이 아니다. 문구를 새로 쓰거나 요약하거나 다듬지 않는다.",
+    `판매 채널: ${payload.options.channel}`,
+    `사용자 요청사항(디자인 참고용이며 문구에는 반영하지 않는다): ${payload.request || "없음"}`,
+    "",
+    "# 전사 규칙(강제)",
+    "- 원본 이미지에 적힌 문장을 그대로 옮긴다. 새 문장을 만들거나 의역하지 않는다",
+    "- 원본에 없는 섹션을 추가하지 않고, 있는 섹션을 빼지 않으며, 순서도 바꾸지 않는다",
+    "- 원본에 해당 요소가 없으면 빈 문자열이나 빈 배열로 둔다. 억지로 채우지 않는다",
+    "- 구매 버튼이나 CTA 버튼 문구는 옮기지 않는다",
+    "",
+    "# 출력 형식",
+    "JSON 키: product_inferred, diagnostic_summary, strategy, sections, compliance_notes",
+    `sections는 원본에 실제로 존재하는 섹션 수만큼(최대 ${MAX_PRESERVE_SECTIONS}개) 위에서 아래 순서로 만든다.`,
+    '{ "section_id": "S1", "name": "이 섹션을 부르는 이름 12자 이내", "eyebrow": "원본 상단 작은 라벨", "headline": "원본 대제목", "subheadline": "원본 설명 문장", "points": [{"label": "원본 소제목", "desc": "원본 설명"}], "extras": ["원본 짧은 라벨"], "note": "원본 안내 문구", "evidence": "원본에서 이 섹션이 있던 위치" }',
+    "한 섹션에 문장이 많으면 points를 최대 6개까지 쓰고, 남는 짧은 문구는 extras에 담는다.",
+    "product_inferred에는 원본에서 확인되는 브랜드명, 제품명, 카테고리만 적는다.",
+    "diagnostic_summary에는 원본의 섹션 구성을 한 줄로 요약한다.",
+    `이미지 생성 모델: ${modelInfo.label} (${modelInfo.id})`
+  ].join("\n");
+}
+
+/** 기본 모드: 원본 근거를 지키되 구매전환 흐름으로 카피와 구성을 다시 설계한다. */
+function restructureAnalysisPrompt(payload: AnalysisPayload, modelInfo: ReturnType<typeof modelMeta>) {
+  return [
     "너는 한국 이커머스 상세페이지 CRO 카피라이터다.",
     "업로드된 기존 상세페이지를 근거로 리디자인 블루프린트를 한국어 JSON으로 작성하라.",
     `판매 채널: ${payload.options.channel}`,
@@ -222,21 +302,6 @@ async function analyzeSource({
     "각 문장은 짧게 끊어 크게 읽히게 쓰되, 섹션의 정보량 자체를 줄이지는 않는다. 섹션마다 다른 헤드라인을 쓴다.",
     `이미지 생성 모델: ${modelInfo.label} (${modelInfo.id})`
   ].join("\n");
-
-  try {
-    if (provider === "google") {
-      return await analyzeWithGoogle({ apiKey, prompt, references });
-    }
-    return await analyzeWithOpenAI({ apiKey, prompt, references });
-  } catch (error) {
-    return {
-      product_inferred: { category: "업로드 자료 기반 추정", confidence: 0.4 },
-      diagnostic_summary: `AI 분석 호출 실패: ${error instanceof Error ? error.message : "unknown"}`,
-      strategy: "원본 자료의 제품컷/USP/근거를 보존하고, 8장 섹션 구조로 전환 설계를 적용합니다.",
-      sections: [],
-      compliance_notes: "근거 없는 수치, 리뷰, 인증, 효과 표현은 생성하지 않습니다."
-    };
-  }
 }
 
 async function analyzeWithOpenAI({ apiKey, prompt, references }: { apiKey: string; prompt: string; references: ReferenceImage[] }) {
@@ -369,6 +434,16 @@ function buildSectionReferences({
   return references.slice(0, MAX_REFERENCE_IMAGES);
 }
 
+type SectionPlan = {
+  id: string;
+  name: string;
+  purpose: string;
+  source: string;
+  layout: string;
+  order: number;
+  copy: SectionCopy;
+};
+
 function buildSections(
   count: number,
   startSection: number,
@@ -376,20 +451,38 @@ function buildSections(
   analysis: unknown,
   modelInfo: ReturnType<typeof modelMeta>
 ): Section[] {
-  return sectionTemplates(count, startSection).map((template) => {
-    const copy = pickSectionCopy(analysis, template.id);
+  const preserve = payload.mode === "preserve";
+  const plans: SectionPlan[] = preserve
+    ? preserveSectionPlans(analysis, count, startSection)
+    : sectionTemplates(count, startSection).map((template, index) => ({
+        ...template,
+        order: startSection + index,
+        copy: pickSectionCopy(analysis, template.id)
+      }));
+
+  return plans.map((plan) => {
+    const copy = plan.copy;
     const promptText = [
       "너는 한국 커머스 상세페이지 섹션 이미지 생성 엔진이다.",
       `이미지 생성 모델: ${modelInfo.label} (${modelInfo.id})`,
       "세로형 9:16 상세페이지 섹션 이미지 1장을 생성한다.",
-      `섹션: ${template.name}`,
-      `목적: ${template.purpose}`,
-      `권장 레이아웃: ${template.layout}`,
+      preserve
+        ? "이번 작업은 '원본 구성 유지' 리디자인이다. 원본의 섹션 구성과 문구는 그대로 두고 디자인과 레이아웃만 새로 만든다."
+        : "이번 작업은 전환 구조 리디자인이다. 원본의 사실만 지키고 구매전환 흐름으로 다시 구성한다.",
+      `섹션: ${plan.name}`,
+      `목적: ${plan.purpose}`,
+      preserve ? `원본 위치: 위에서 ${plan.order}번째 섹션` : `권장 레이아웃: ${plan.layout}`,
       `판매 채널: ${payload.options.channel}`,
-      `추가 요청사항: ${payload.request || "전환율 중심으로 리디자인"}`,
-      payload.rolloutRequest ? `히어로 검토 후 사용자가 요청한 반영사항: ${payload.rolloutRequest}` : "히어로 검토 후 반영사항: 없음",
+      preserve
+        ? `추가 요청사항(디자인과 레이아웃에만 반영하고 문구는 바꾸지 않는다): ${payload.request || "없음"}`
+        : `추가 요청사항: ${payload.request || "전환율 중심으로 리디자인"}`,
+      payload.rolloutRequest
+        ? `${preserve ? "첫 장 검토 후 사용자가 요청한 반영사항(디자인 한정)" : "히어로 검토 후 사용자가 요청한 반영사항"}: ${payload.rolloutRequest}`
+        : "검토 후 반영사항: 없음",
       "",
-      "# 이미지에 넣을 문구 (아래 문구를 그대로 사용하고 새 문구를 지어내지 않는다)",
+      preserve
+        ? "# 이미지에 넣을 문구 (원본에서 그대로 옮겨온 문장이다. 한 글자도 바꾸지 말고 그대로 렌더링한다)"
+        : "# 이미지에 넣을 문구 (아래 문구를 그대로 사용하고 새 문구를 지어내지 않는다)",
       copy.eyebrow ? `상단 라벨(작은 알약 배지): ${copy.eyebrow}` : "상단 라벨: 없음",
       `대제목(가장 크게, 2~3줄로 끊어서): ${copy.headline}`,
       copy.subheadline ? `설명: ${copy.subheadline}` : "설명: 없음",
@@ -401,30 +494,71 @@ function buildSections(
       "",
       "# 디자인 규칙",
       "스타일: 한국 스마트스토어에서 흔히 보는 완성형 상세페이지 디자인을 따른다. 둥근 정보 카드, 체크 아이콘 목록, 원형 아이콘 배지, 번호 배지, 가로 아이콘 타일 줄, 포인트 컬러 강조를 적극적으로 사용하고 밝은 배경에 정돈된 그리드로 배치한다.",
-      "정보 밀도: 화면을 정보로 가득 채운다. 위에서 아래로 상단 라벨 → 대제목 → 설명 → 제품 사진 → 포인트 카드 → 아이콘 타일 줄 → 안내 문구 순으로 층을 쌓아 빈 곳을 남기지 않는다. 큰 빈 여백, 문구 3~4개만 떠 있는 헐렁한 구성은 실패로 간주한다.",
+      preserve
+        ? "구성 유지(최우선): 위 문구의 순서와 의미를 원본 그대로 유지한다. 문구를 추가·삭제·요약·의역·번역하지 않고, 섹션의 주제도 바꾸지 않는다. 새로 만드는 것은 오직 디자인이다. 타이포 위계, 여백, 정렬, 카드와 그리드 구조, 아이콘, 컬러, 사진 배치만 현대적으로 끌어올린다."
+        : "정보 밀도: 화면을 정보로 가득 채운다. 위에서 아래로 상단 라벨 → 대제목 → 설명 → 제품 사진 → 포인트 카드 → 아이콘 타일 줄 → 안내 문구 순으로 층을 쌓아 빈 곳을 남기지 않는다. 큰 빈 여백, 문구 3~4개만 떠 있는 헐렁한 구성은 실패로 간주한다.",
+      preserve
+        ? "정보 밀도: 위 문구를 하나도 빠뜨리지 말고 전부 넣되, 시각 위계와 그룹핑으로 정돈해 훨씬 읽기 쉽게 만든다. 빈 여백만 넓은 구성은 실패로 간주한다."
+        : "구성 원칙: 이 섹션의 목적에 맞는 정보 흐름을 스스로 설계한다.",
       "모바일 가독성: 정보량을 줄이는 대신 글자를 키워서 가독성을 확보한다. 대제목 글자 높이는 이미지 폭의 10% 이상으로 아주 크게, 소제목과 라벨은 4.5% 이상, 설명문은 3.5% 이상으로 한다. 이미지 폭 2.5% 미만의 작은 글씨와 빽빽한 표만 피한다.",
       payload.hasProductImage
         ? "제품 사진 규칙: 첨부된 제품 사진의 제품 형태, 패키지 디자인, 라벨 문구, 색상, 로고를 그대로 유지한다. 제품을 새로 그리거나 변형하거나 다른 제품으로 바꾸지 않는다."
         : "제품 사진 규칙: 업로드된 원본의 제품컷 형태, 패키지, 색감을 그대로 보존한다. 제품을 새로 지어내지 않는다.",
       "금지: 구매 버튼, 장바구니 버튼, '구매하기'·'지금 구매' 같은 CTA 버튼이나 화살표 버튼을 이미지 안에 그리지 않는다. 한국 상세페이지 관습에 맞춰 정보 전달에만 집중한다.",
-      template.id === "S1"
-        ? "통일 규칙: 이 히어로가 8장 전체의 스타일 기준이 된다. 배경 색, 포인트 색, 폰트 감각, 카드 스타일을 명확하게 잡는다."
-        : "통일 규칙: 첨부된 히어로 섹션 이미지와 같은 배경 색, 포인트 색, 폰트 감각, 카드 스타일을 사용하되, 레이아웃 구성은 반드시 다르게 한다. 모든 섹션이 큰 상단 헤드라인 + 중앙 제품컷으로 반복되면 안 된다.",
+      unifyRule(plan.order === 1, preserve),
       "브랜드 규칙: '한이룸', 'HANEERUM', 'HR'은 도구 이름일 뿐이며 제품 브랜드가 아니다. 이미지 안에 절대 쓰지 않는다. 제품 브랜드명과 제품명은 업로드된 원본이나 제품 패키지에서 확인되는 이름만 사용한다.",
-      "안전 규칙: 근거 없는 수치, 리뷰, 인증, 효과를 만들지 않는다. 한 장에 메시지 하나만 담는다. 오탈자 없는 자연스러운 한국어로 표기한다."
+      preserve
+        ? "안전 규칙: 위에 적힌 원본 문구만 사용한다. 원본에 없는 수치, 리뷰, 인증, 효과를 새로 만들지 않는다. 오탈자 없는 자연스러운 한국어로 표기한다."
+        : "안전 규칙: 근거 없는 수치, 리뷰, 인증, 효과를 만들지 않는다. 한 장에 메시지 하나만 담는다. 오탈자 없는 자연스러운 한국어로 표기한다."
     ].join("\n");
 
     return {
-      section_id: template.id,
-      image_id: `IMG_${template.id}`,
-      name: template.name,
-      purpose: template.purpose,
-      source: template.source,
+      section_id: plan.id,
+      image_id: `IMG_${plan.id}`,
+      name: plan.name,
+      purpose: plan.purpose,
+      source: plan.source,
       copy,
       prompt: promptText.replaceAll("\n", "<br>"),
       promptText
     };
   });
+}
+
+function unifyRule(isFirstSection: boolean, preserve: boolean) {
+  if (isFirstSection) {
+    return "통일 규칙: 이 첫 장이 전체의 스타일 기준이 된다. 배경 색, 포인트 색, 폰트 감각, 카드 스타일을 명확하게 잡는다.";
+  }
+  return preserve
+    ? "통일 규칙: 첨부된 첫 섹션 이미지와 같은 배경 색, 포인트 색, 폰트 감각, 카드 스타일을 사용한다. 레이아웃은 이 섹션이 담은 원본 정보 구조에 맞춰 자연스럽게 짠다."
+    : "통일 규칙: 첨부된 히어로 섹션 이미지와 같은 배경 색, 포인트 색, 폰트 감각, 카드 스타일을 사용하되, 레이아웃 구성은 반드시 다르게 한다. 모든 섹션이 큰 상단 헤드라인 + 중앙 제품컷으로 반복되면 안 된다.";
+}
+
+/** 원본 구성 유지 모드에서는 분석이 전사한 원본 섹션이 그대로 생성 계획이 된다. */
+function preserveSectionPlans(analysis: unknown, count: number, startSection: number): SectionPlan[] {
+  return blueprintSections(analysis)
+    .map((item, index) => {
+      const record = (item || {}) as Record<string, unknown>;
+      return {
+        id: `S${index + 1}`,
+        name: text(record.name) || `원본 ${index + 1}번째 섹션`,
+        purpose: "원본 섹션의 정보와 문구를 그대로 유지한 채 디자인과 레이아웃만 새로 만든다.",
+        source: text(record.evidence) || "원본 상세페이지 해당 구간",
+        layout: "",
+        order: index + 1,
+        copy: readSectionCopy(record, 6, 6)
+      };
+    })
+    .slice(startSection - 1, startSection - 1 + count);
+}
+
+function blueprintSections(analysis: unknown): unknown[] {
+  const sections = (analysis as { sections?: unknown })?.sections;
+  return Array.isArray(sections) ? sections.slice(0, MAX_PRESERVE_SECTIONS) : [];
+}
+
+function blueprintSectionCount(analysis: unknown) {
+  return blueprintSections(analysis).length;
 }
 
 /** 분석이 확정한 섹션 카피를 꺼낸다. 분석 실패 시에는 템플릿 목적을 그대로 쓰도록 빈 값을 준다. */
@@ -438,7 +572,10 @@ function pickSectionCopy(analysis: unknown, sectionId: string): SectionCopy {
   }) as Record<string, unknown> | undefined;
 
   if (!match) return empty;
+  return readSectionCopy(match);
+}
 
+function readSectionCopy(match: Record<string, unknown>, maxPoints = 4, maxExtras = 5): SectionCopy {
   const points = Array.isArray(match.points)
     ? match.points
         .map((point) => {
@@ -450,11 +587,11 @@ function pickSectionCopy(analysis: unknown, sectionId: string): SectionCopy {
           };
         })
         .filter((point) => point.label || point.desc)
-        .slice(0, 4)
+        .slice(0, maxPoints)
     : [];
 
   const extras = Array.isArray(match.extras)
-    ? match.extras.filter((extra): extra is string => typeof extra === "string" && extra.trim().length > 0).slice(0, 5)
+    ? match.extras.filter((extra): extra is string => typeof extra === "string" && extra.trim().length > 0).slice(0, maxExtras)
     : [];
 
   return {
@@ -561,6 +698,28 @@ function modelMeta(provider: Provider) {
     return { provider: "google" as const, label: "Google Nano Banana 2", id: GOOGLE_NANO_BANANA_2_MODEL };
   }
   return { provider: "openai" as const, label: "OpenAI Image 2.0", id: OPENAI_IMAGE_MODEL };
+}
+
+/**
+ * 이미지 API의 일시적 실패(요청 제한, 5xx, 타임아웃)는 잠시 뒤 다시 시도한다.
+ * 히어로 직후 나머지 섹션을 연속 생성할 때 요청 제한으로 전체가 중단되던 문제를 막는다.
+ */
+async function withTransientRetry<T>(sectionId: string, run: () => Promise<T>): Promise<T> {
+  const delays = [8000, 20000];
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await run();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (attempt >= delays.length || !isTransientProviderError(message)) throw error;
+      console.warn(`[generate] ${sectionId} 일시 오류로 ${delays[attempt] / 1000}초 후 재시도 (${attempt + 1}/${delays.length}): ${message}`);
+      await new Promise((resolve) => setTimeout(resolve, delays[attempt]));
+    }
+  }
+}
+
+function isTransientProviderError(message: string) {
+  return /rate limit|rate_limit|too many requests|429|timeout|timed out|temporarily|overloaded|unavailable|internal server error|server_error|\b50[0234]\b/i.test(message);
 }
 
 async function readJsonResponse(response: Response) {

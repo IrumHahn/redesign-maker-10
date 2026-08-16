@@ -31,6 +31,8 @@ import { cn } from "@/lib/utils";
 
 type Model = "openai" | "google";
 type View = "dashboard" | "workspace" | "results";
+/** restructure: 전환 구조로 재구성 / preserve: 원본 구성과 문구를 그대로 두고 디자인만 새로 만든다. */
+type RedesignMode = "restructure" | "preserve";
 
 type SectionCopy = {
   eyebrow: string;
@@ -65,6 +67,8 @@ type Project = {
   id: string;
   title: string;
   channel: string;
+  mode?: RedesignMode;
+  sectionTotal?: number;
   model: Model;
   count: number;
   ratio: string;
@@ -148,6 +152,7 @@ export function RedesignWizard() {
   const [projects, setProjects] = React.useState<Project[]>([]);
   const [activeProject, setActiveProject] = React.useState<Project | null>(null);
   const [selectedModel, setSelectedModel] = React.useState<Model>("openai");
+  const [redesignMode, setRedesignMode] = React.useState<RedesignMode>("restructure");
   const [channel, setChannel] = React.useState("스마트스토어");
   const [count, setCount] = React.useState(1);
   const [ratio, setRatio] = React.useState("9:16");
@@ -229,8 +234,13 @@ export function RedesignWizard() {
   ): Promise<Project | null> {
     const outputCount = typeof nextCount === "number" && Number.isFinite(nextCount) ? nextCount : count;
     const outputRolloutRequest = typeof nextRolloutRequest === "string" ? nextRolloutRequest : "";
+    // 이어서 생성할 때는 그 작업이 시작된 모드를 그대로 따른다.
+    const activeMode: RedesignMode = baseProject?.mode || redesignMode;
 
-    if (files.length === 0) {
+    // 새로고침하거나 저장된 작업을 다시 열면 업로드 파일이 사라진다.
+    // 이어서 생성하는 경우에는 이미 만든 섹션 이미지를 원본 참조로 대신 쓴다.
+    const fallbackSourceImage = baseProject?.sections.find((section) => section.imageUrl)?.imageUrl || "";
+    if (files.length === 0 && !fallbackSourceImage) {
       setToast("기존 상세페이지 이미지 또는 PDF를 먼저 업로드해주세요.");
       setView("workspace");
       return null;
@@ -246,20 +256,25 @@ export function RedesignWizard() {
     if (outputCount > 1 && !baseProject) {
       reportClientLog("generate-sequence:start", {
         model: selectedModel,
+        mode: activeMode,
         count: outputCount,
         startSection
       });
       let workingProject: Project | null = null;
-      for (let sectionNumber = startSection; sectionNumber < startSection + outputCount; sectionNumber += 1) {
-        const nextProject = await generate(1, outputRolloutRequest, sectionNumber, workingProject, true, outputCount, sectionNumber - startSection + 1);
+      // 원본 구성 유지 모드의 총 장수는 첫 장을 만들면서 확정되는 원본 섹션 수를 따른다.
+      let totalCount = outputCount;
+      for (let sectionNumber = startSection; sectionNumber < startSection + totalCount; sectionNumber += 1) {
+        const nextProject = await generate(1, outputRolloutRequest, sectionNumber, workingProject, true, totalCount, sectionNumber - startSection + 1);
         if (!nextProject) return workingProject;
         workingProject = nextProject;
+        if (activeMode === "preserve") totalCount = totalSectionsOf(workingProject);
       }
       return workingProject;
     }
 
     reportClientLog("generate:start", {
       model: selectedModel,
+      mode: activeMode,
       count: outputCount,
       startSection,
       files: files.length,
@@ -280,7 +295,9 @@ export function RedesignWizard() {
 
     try {
       const form = new FormData();
-      const uploadFiles = await normalizeFilesForUpload(files);
+      const uploadFiles = files.length > 0
+        ? await normalizeFilesForUpload(files)
+        : [await dataUrlToFile(await compressImageForRequest(fallbackSourceImage), "source-reference.jpg")];
       if (abortController.signal.aborted) throw new DOMException("생성 요청을 취소했습니다.", "AbortError");
       setToast("원본 분석과 실제 이미지 생성을 시작합니다.");
       const uploadProductFiles = productFiles.length > 0 ? await normalizeFilesForUpload(productFiles) : [];
@@ -288,6 +305,7 @@ export function RedesignWizard() {
       uploadProductFiles.forEach((file) => form.append("productFiles", file));
       form.append("request", request);
       form.append("model", selectedModel);
+      form.append("mode", activeMode);
       form.append("channel", channel);
       form.append("ratio", ratio);
       form.append("count", String(outputCount));
@@ -368,21 +386,23 @@ export function RedesignWizard() {
     }
 
     let workingProject = baseProject;
+    const totalCount = totalSectionsOf(workingProject);
     const existingSectionNumbers = new Set(
       workingProject.sections
         .map((section) => Number(section.id.replace(/\D/g, "")))
         .filter((sectionNumber) => Number.isFinite(sectionNumber))
     );
-    const missingSections = Array.from({ length: 8 }, (_, index) => index + 1)
+    const missingSections = Array.from({ length: totalCount }, (_, index) => index + 1)
       .filter((sectionNumber) => !existingSectionNumbers.has(sectionNumber));
 
     reportClientLog("generate-rest:start", {
+      mode: workingProject.mode || "restructure",
       existing: workingProject.sections.length,
       missing: missingSections.join(",")
     });
 
     if (missingSections.length === 0) {
-      setToast("이미 8장 상세페이지가 생성되어 있습니다.");
+      setToast(`이미 ${totalCount}장 상세페이지가 생성되어 있습니다.`);
       return;
     }
 
@@ -598,6 +618,8 @@ export function RedesignWizard() {
           <Workspace
             selectedModel={selectedModel}
             setSelectedModel={setSelectedModel}
+            redesignMode={redesignMode}
+            setRedesignMode={setRedesignMode}
             channel={channel}
             setChannel={setChannel}
             count={count}
@@ -695,22 +717,25 @@ export function RedesignWizard() {
   );
 }
 
+/**
+ * 오류 메시지는 사용자가 읽고 복사할 때까지 남겨야 한다(CLAUDE.md 9번).
+ * 키워드로 오류를 골라내던 방식은 새 오류 문구를 놓쳐 조용히 사라졌으므로,
+ * 진행/완료 같은 일시 알림만 자동으로 닫고 나머지는 모두 유지한다.
+ */
 function isPersistentToast(message: string) {
-  return [
-    "생성 실패",
-    "수정 실패",
-    "오류",
-    "올바르지 않습니다",
-    "접근할 수 없습니다",
-    "권한",
-    "한도",
-    "할당량",
-    "중단되었습니다",
-    "quota",
-    "Quota",
-    "Billing",
-    "does not have access"
-  ].some((keyword) => message.includes(keyword));
+  const transient = [
+    "중입니다",
+    "시작합니다",
+    "생성합니다",
+    "생성 완료",
+    "저장했습니다",
+    "복사했습니다",
+    "삭제했습니다",
+    "취소했습니다",
+    "다운로드합니다",
+    "저장했습니다"
+  ];
+  return !transient.some((keyword) => message.includes(keyword));
 }
 
 async function readApiResponse(response: Response): Promise<any> {
@@ -837,6 +862,25 @@ function mergeGeneratedProject(baseProject: Project, generatedProject: Project):
   };
 }
 
+/** 원본 구성 유지 모드의 총 장수는 원본에서 읽어낸 섹션 수를 따르고, 기본 모드는 8장이다. */
+function totalSectionsOf(project?: Project | null) {
+  if (project?.mode !== "preserve") return 8;
+  const fromServer = Number(project.sectionTotal);
+  if (Number.isFinite(fromServer) && fromServer > 0) return Math.min(10, fromServer);
+  const fromBlueprint = blueprintSectionNames(project).length;
+  return Math.min(10, Math.max(1, fromBlueprint || project.sections.length));
+}
+
+/** 원본 구성 유지 모드에서 이어서 만들 섹션 이름을 분석 결과에서 꺼낸다. */
+function blueprintSectionNames(project?: Project | null): string[] {
+  const sections = (project?.analysis as { sections?: unknown })?.sections;
+  if (!Array.isArray(sections)) return [];
+  return sections.slice(0, 10).map((item, index) => {
+    const name = (item as { name?: unknown })?.name;
+    return typeof name === "string" && name.trim() ? name.trim() : `원본 ${index + 1}번째 섹션`;
+  });
+}
+
 function sectionSortNumber(sectionId: string) {
   const sectionNumber = Number(sectionId.replace(/\D/g, ""));
   return Number.isFinite(sectionNumber) ? sectionNumber : 999;
@@ -903,6 +947,12 @@ async function compressImageForRequest(dataUrl: string) {
   } catch {
     return dataUrl;
   }
+}
+
+async function dataUrlToFile(dataUrl: string, fileName: string) {
+  const response = await fetch(dataUrl);
+  const blob = await response.blob();
+  return new File([blob], fileName, { type: blob.type || "image/jpeg" });
 }
 
 function loadDataUrlImage(dataUrl: string) {
@@ -1207,6 +1257,8 @@ function Dashboard({
 function Workspace(props: {
   selectedModel: Model;
   setSelectedModel: (model: Model) => void;
+  redesignMode: RedesignMode;
+  setRedesignMode: (mode: RedesignMode) => void;
   channel: string;
   setChannel: (channel: string) => void;
   count: number;
@@ -1227,6 +1279,8 @@ function Workspace(props: {
   const {
     selectedModel,
     setSelectedModel,
+    redesignMode,
+    setRedesignMode,
     channel,
     setChannel,
     count,
@@ -1280,9 +1334,22 @@ function Workspace(props: {
 
           <Disclosure
             title="생성 옵션"
-            summary={`${models[selectedModel].label.replace("Google ", "")} · ${channel} · ${count === 1 ? "1장" : "8장"}`}
+            summary={`${redesignModeLabel(redesignMode)} · ${models[selectedModel].label.replace("Google ", "")} · ${channel} · ${count === 1 ? "1장" : "전체"}`}
           >
             <div className="grid gap-4">
+              <div>
+                <OptionGroup
+                  label="리디자인 방식"
+                  value={redesignMode}
+                  options={[["restructure", "전환 구조로 재구성"], ["preserve", "원본 구성 유지"]]}
+                  onChange={(value) => setRedesignMode(value as RedesignMode)}
+                />
+                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                  {redesignMode === "preserve"
+                    ? "원본의 섹션 순서와 문구를 그대로 두고 디자인과 레이아웃만 새로 만듭니다. 장수도 원본 섹션 수를 그대로 따릅니다."
+                    : "원본의 사실은 지키면서 카피와 섹션 구성을 구매전환 흐름(히어로 → 문제공감 → 베네핏 → 근거 → FAQ)으로 다시 설계합니다."}
+                </p>
+              </div>
               <OptionGroup
                 label="이미지 생성 모델"
                 value={selectedModel}
@@ -1292,7 +1359,9 @@ function Workspace(props: {
               <OptionGroup
                 label="결과 장수"
                 value={String(count)}
-                options={[["1", "히어로 1장 먼저"], ["8", "8장 한 번에"]]}
+                options={redesignMode === "preserve"
+                  ? [["1", "첫 장 먼저"], ["8", "원본 전체 한 번에"]]
+                  : [["1", "히어로 1장 먼저"], ["8", "8장 한 번에"]]}
                 onChange={(value) => setCount(Number(value))}
               />
               <OptionGroup label="출력 비율" value={ratio} options={[["9:16", "9:16"], ["1080×1920", "1080×1920"]]} onChange={setRatio} />
@@ -1311,6 +1380,10 @@ function Workspace(props: {
       ) : null}
     </section>
   );
+}
+
+function redesignModeLabel(mode?: RedesignMode) {
+  return mode === "preserve" ? "원본 구성 유지" : "전환 구조로 재구성";
 }
 
 /** 선택 입력을 접어두는 한 줄 행. 열림 상태에서만 내용을 보여준다. */
@@ -1543,12 +1616,16 @@ function Results({
     );
   }
 
-  const showRollout = project.sections.length < 8;
+  const totalCount = totalSectionsOf(project);
+  const showRollout = project.sections.length < totalCount;
   const heroOnly = showRollout && project.sections.length === 1;
   const title = projectDisplayTitle(project);
   const downloadableSections = project.sections.filter((section) => section.imageUrl);
   const existingIds = new Set(project.sections.map((section) => section.id));
-  const missingSectionNames = plannedSections.filter(([id]) => !existingIds.has(id)).map(([, name]) => name);
+  const plan: Array<[string, string]> = project.mode === "preserve"
+    ? blueprintSectionNames(project).map((name, index) => [`S${index + 1}`, name] as [string, string])
+    : plannedSections;
+  const missingSectionNames = plan.filter(([id]) => !existingIds.has(id)).map(([, name]) => name);
   const sectionCards = project.sections.map((section, index) => (
     <SectionResultCard
       key={section.id}
@@ -1593,7 +1670,7 @@ function Results({
 
   return (
     <section>
-      <Topbar eyebrow="결과 확인" title={title}>
+      <Topbar eyebrow={`결과 확인 · ${redesignModeLabel(project.mode)}`} title={title}>
         <Button variant="ghost" onClick={copyCopyMarkdown}><Copy className="size-4" />카피 복사</Button>
         <Button variant="ghost" onClick={onSave}><FileText className="size-4" />저장</Button>
         <Button onClick={downloadZip} disabled={downloadableSections.length === 0 || exporting}>
@@ -1608,6 +1685,7 @@ function Results({
           {sectionCards}
           <RolloutPanel
             missingSections={missingSectionNames}
+            preserve={project.mode === "preserve"}
             rolloutRequest={rolloutRequest}
             setRolloutRequest={setRolloutRequest}
             onGenerateRest={onGenerateRest}
@@ -1621,6 +1699,7 @@ function Results({
             <div className="mt-4">
               <RolloutPanel
                 missingSections={missingSectionNames}
+                preserve={project.mode === "preserve"}
                 rolloutRequest={rolloutRequest}
                 setRolloutRequest={setRolloutRequest}
                 onGenerateRest={onGenerateRest}
@@ -1776,12 +1855,14 @@ const plannedSections: Array<[string, string]> = [
 /** 아직 만들지 않은 섹션을 이어서 생성하는 패널. */
 function RolloutPanel({
   missingSections,
+  preserve,
   rolloutRequest,
   setRolloutRequest,
   onGenerateRest,
   generating
 }: {
   missingSections: string[];
+  preserve: boolean;
   rolloutRequest: string;
   setRolloutRequest: (request: string) => void;
   onGenerateRest: () => void;
@@ -1793,7 +1874,9 @@ function RolloutPanel({
         <div>
           <strong className="text-base">이어서 나머지 {missingSections.length}장을 만드세요</strong>
           <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-            히어로에서 확정한 카피 설계와 디자인 스타일을 그대로 이어받습니다.
+            {preserve
+              ? "원본의 섹션 구성과 문구는 그대로 두고, 첫 장에서 잡은 디자인 스타일을 이어받습니다."
+              : "히어로에서 확정한 카피 설계와 디자인 스타일을 그대로 이어받습니다."}
           </p>
         </div>
 
