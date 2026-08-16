@@ -10,7 +10,6 @@ export type ExportSection = {
     subheadline?: string;
     points?: Array<{ label?: string; desc?: string }>;
     extras?: string[];
-    note?: string;
   };
 };
 
@@ -50,7 +49,6 @@ export function buildBlueprintMarkdown(sections: ExportSection[], title: string)
       lines.push("", "**핵심 포인트:**", ...copy.points.map((point) => `- **${point.label || ""}** ${point.desc || ""}`.trim()));
     }
     if (copy?.extras?.length) lines.push("", `**아이콘 타일:** ${copy.extras.join(" · ")}`);
-    if (copy?.note) lines.push("", `**안내:** ${copy.note}`);
     if (!copy?.headline && !copy?.subheadline && !copy?.points?.length) {
       lines.push("_이 섹션은 카피 데이터 없이 생성되었습니다._");
     }

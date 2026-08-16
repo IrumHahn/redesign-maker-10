@@ -36,7 +36,6 @@ type SectionCopy = {
   subheadline: string;
   points: CopyPoint[];
   extras: string[];
-  note: string;
 };
 
 type Section = {
@@ -269,7 +268,8 @@ function preserveAnalysisPrompt(payload: AnalysisPayload, modelInfo: ReturnType<
     "# 출력 형식",
     "JSON 키: product_inferred, diagnostic_summary, strategy, sections, compliance_notes",
     `sections는 원본에 실제로 존재하는 섹션 수만큼(최대 ${MAX_PRESERVE_SECTIONS}개) 위에서 아래 순서로 만든다.`,
-    '{ "section_id": "S1", "name": "이 섹션을 부르는 이름 12자 이내", "eyebrow": "원본 상단 작은 라벨", "headline": "원본 대제목", "subheadline": "원본 설명 문장", "points": [{"label": "원본 소제목", "desc": "원본 설명"}], "extras": ["원본 짧은 라벨"], "note": "원본 안내 문구", "evidence": "원본에서 이 섹션이 있던 위치" }',
+    '{ "section_id": "S1", "name": "이 섹션을 부르는 이름 12자 이내", "eyebrow": "원본 상단 작은 라벨", "headline": "원본 대제목", "subheadline": "원본 설명 문장", "points": [{"label": "원본 소제목", "desc": "원본 설명"}], "extras": ["원본 짧은 라벨"], "evidence": "원본에서 이 섹션이 있던 위치" }',
+    "원본에 실제로 인쇄된 문구만 옮긴다. 화면 구성 설명이나 제작 메모(노출, 표기, 영역)는 문구가 아니므로 옮기지 않는다.",
     "한 섹션에 문장이 많으면 points를 최대 6개까지 쓰고, 남는 짧은 문구는 extras에 담는다.",
     "product_inferred에는 원본에서 확인되는 브랜드명, 제품명, 카테고리만 적는다.",
     "diagnostic_summary에는 원본의 섹션 구성을 한 줄로 요약한다.",
@@ -289,13 +289,29 @@ function restructureAnalysisPrompt(payload: AnalysisPayload, modelInfo: ReturnTy
     "# 사실 안전장치(강제)",
     "- 업로드 이미지와 사용자 입력에서 확인되지 않는 브랜드명/수치/인증/효능/리뷰를 새로 만들지 말 것",
     "- 근거가 부족하면 FAQ/보증/사용법 같은 안전한 구조로 대체할 것",
-    "- headline/subheadline/bullets/cta는 제작자용 설명문(\"이 섹션은...\")이 아니라 소비자에게 그대로 보여줄 문장으로 쓸 것",
     "- 규제 리스크가 있으면 단정 표현을 피하고 안전한 표현으로 완화할 것",
+    "",
+    "# 카피 작성 원칙 (가장 중요)",
+    "모든 문구는 상세페이지를 보는 소비자에게 직접 말하는 문장이어야 한다.",
+    "너 자신에게 하는 지시, 기획 메모, 화면 구성 설명, 제작 규칙은 절대 문구로 쓰지 않는다.",
+    "다음 단어가 들어가면 실패다: 표기, 노출, 영역, 섹션, 원본, 각주, 상세페이지, 만들지 마세요.",
+    "",
+    "잘못된 예 → 올바른 예",
+    "- \'구매 전 확인할 근거 모음\' → \'민감 피부도 편안하게\'",
+    "- \'실구매 후기는 상세에서 확인\' → \'13,314개의 후기가 말해줍니다\'",
+    "- \'별점, 포토리뷰, Q&A 영역이 노출됩니다\' → \'직접 써본 사람들의 이야기\'",
+    "- \'리뷰 13,314 표기 확인\' → \'리뷰 13,314개\'",
+    "- \'민감성 피부 대상 완료 표기\' → \'민감성 피부 테스트 완료\'",
+    "- \'구매자 사진 목록 노출\' → \'구매자가 직접 찍은 사진\'",
+    "- \'5점~1점 분포 노출\' → \'평균 별점 4.9점\'",
+    "- \'새로운 후기 문구는 만들지 마세요\' → (이런 문장은 아예 출력하지 않는다)",
+    "",
+    "섹션 이름과 역할(히어로, 근거·신뢰, 후기 등)은 레이아웃을 잡기 위한 내부 분류다. 그 단어를 문구로 쓰지 않는다.",
     "",
     "# 출력 형식",
     "JSON 키: product_inferred, diagnostic_summary, strategy, sections, compliance_notes",
     "sections는 S1~S8 8개 배열이며 각 항목은 다음 형식을 반드시 지킨다.",
-    '{ "section_id": "S1", "eyebrow": "상단 작은 라벨 12자 이내", "headline": "굵은 대제목 30자 이내, 2~3줄로 끊어 읽히게", "subheadline": "설명 45자 이내", "points": [{"label": "굵은 소제목 10자 이내", "desc": "설명 30자 이내"}], "extras": ["아이콘 타일용 짧은 라벨 8자 이내"], "note": "안내나 주의 한 줄, 없으면 빈 문자열", "evidence": "원본에서 확인된 근거만" }',
+    '{ "section_id": "S1", "eyebrow": "제품 카테고리·특징 라벨 12자 이내(예: 차량용 쓰레기봉투). 섹션 역할 이름 금지", "headline": "굵은 대제목 30자 이내, 2~3줄로 끊어 읽히게", "subheadline": "설명 45자 이내", "points": [{"label": "굵은 소제목 10자 이내", "desc": "설명 30자 이내"}], "extras": ["아이콘 타일용 짧은 라벨 8자 이내"], "evidence": "원본에서 확인된 근거만" }',
     "points는 3개, extras는 4~5개를 채운다. 정보를 비우지 말고 원본에서 확인되는 내용으로 최대한 채운다.",
     "섹션 역할: S1 히어로 / S2 문제공감 체크리스트 / S3 베네핏 3개 / S4 USP 차별점 / S5 근거·신뢰 / S6 사용법 / S7 후기 / S8 FAQ·배송·교환 안내",
     "구매 버튼이나 CTA 문구는 만들지 않는다. 한국 상세페이지는 이미지 안에 구매 버튼을 넣지 않는다.",
@@ -484,13 +500,14 @@ function buildSections(
         ? "# 이미지에 넣을 문구 (원본에서 그대로 옮겨온 문장이다. 한 글자도 바꾸지 말고 그대로 렌더링한다)"
         : "# 이미지에 넣을 문구 (아래 문구를 그대로 사용하고 새 문구를 지어내지 않는다)",
       copy.eyebrow ? `상단 라벨(작은 알약 배지): ${copy.eyebrow}` : "상단 라벨: 없음",
-      `대제목(가장 크게, 2~3줄로 끊어서): ${copy.headline}`,
+      copy.headline
+        ? `대제목(가장 크게, 2~3줄로 끊어서): ${copy.headline}`
+        : "대제목: 확정된 문구가 없다. 제품 사실만 근거로 소비자에게 말하는 짧은 제목을 직접 만든다. 기획 용어나 섹션 이름은 쓰지 않는다.",
       copy.subheadline ? `설명: ${copy.subheadline}` : "설명: 없음",
       copy.points.length > 0
         ? `핵심 포인트(아이콘 + 굵은 소제목 + 설명 2줄 구조로 각각 배치):\n${copy.points.map((point) => `- ${point.label} :: ${point.desc}`).join("\n")}`
         : "핵심 포인트: 없음",
       copy.extras.length > 0 ? `아이콘 타일 라벨(가로로 나열): ${copy.extras.join(" / ")}` : "아이콘 타일 라벨: 없음",
-      copy.note ? `하단 안내 문구(작은 한 줄): ${copy.note}` : "하단 안내 문구: 없음",
       "",
       "# 디자인 규칙",
       "스타일: 한국 스마트스토어에서 흔히 보는 완성형 상세페이지 디자인을 따른다. 둥근 정보 카드, 체크 아이콘 목록, 원형 아이콘 배지, 번호 배지, 가로 아이콘 타일 줄, 포인트 컬러 강조를 적극적으로 사용하고 밝은 배경에 정돈된 그리드로 배치한다.",
@@ -505,6 +522,7 @@ function buildSections(
         ? "제품 사진 규칙: 첨부된 제품 사진의 제품 형태, 패키지 디자인, 라벨 문구, 색상, 로고를 그대로 유지한다. 제품을 새로 그리거나 변형하거나 다른 제품으로 바꾸지 않는다."
         : "제품 사진 규칙: 업로드된 원본의 제품컷 형태, 패키지, 색감을 그대로 보존한다. 제품을 새로 지어내지 않는다.",
       "금지: 구매 버튼, 장바구니 버튼, '구매하기'·'지금 구매' 같은 CTA 버튼이나 화살표 버튼을 이미지 안에 그리지 않는다. 한국 상세페이지 관습에 맞춰 정보 전달에만 집중한다.",
+      "금지: 위에 적힌 섹션 이름과 목적은 레이아웃을 잡기 위한 내부 분류다. 이미지 안에 문구로 쓰지 않는다. '표기', '노출', '영역', '섹션', '원본', '각주' 같은 기획 용어와 제작 지시문도 절대 그리지 않는다. 위에 지정된 문구 외에 새 글자를 만들어 넣지 않는다.",
       unifyRule(plan.order === 1, preserve),
       "브랜드 규칙: '한이룸', 'HANEERUM', 'HR'은 도구 이름일 뿐이며 제품 브랜드가 아니다. 이미지 안에 절대 쓰지 않는다. 제품 브랜드명과 제품명은 업로드된 원본이나 제품 패키지에서 확인되는 이름만 사용한다.",
       preserve
@@ -563,7 +581,7 @@ function blueprintSectionCount(analysis: unknown) {
 
 /** 분석이 확정한 섹션 카피를 꺼낸다. 분석 실패 시에는 템플릿 목적을 그대로 쓰도록 빈 값을 준다. */
 function pickSectionCopy(analysis: unknown, sectionId: string): SectionCopy {
-  const empty: SectionCopy = { eyebrow: "", headline: "", subheadline: "", points: [], extras: [], note: "" };
+  const empty: SectionCopy = { eyebrow: "", headline: "", subheadline: "", points: [], extras: [] };
   const sections = (analysis as { sections?: unknown })?.sections;
   const list = Array.isArray(sections) ? sections : [];
   const match = list.find((item) => {
@@ -575,15 +593,46 @@ function pickSectionCopy(analysis: unknown, sectionId: string): SectionCopy {
   return readSectionCopy(match);
 }
 
+/**
+ * 모델이 기획 메모나 제작 지시문을 카피로 내놓는 일이 있어 이미지 프롬프트에 넣기 전에 걸러낸다.
+ * ("리뷰 13,314 표기 확인", "구매자 사진 목록 노출", "새로운 후기 문구는 만들지 마세요" 같은 문장)
+ */
+const META_COPY_PATTERNS = [
+  /만들지\s*마|쓰지\s*마|넣지\s*마|사용하지\s*마/,
+  /표기\s*확인|완료\s*표기|표기\s*여부|로\s*표기|만\s*표기|표기함|표기$/,
+  /노출됩니다|노출\s*확인|목록\s*노출|분포\s*노출|영역\s*노출|노출함|노출$/,
+  /영역이|영역은|영역을/,
+  /이\s*섹션|해당\s*섹션|섹션에|섹션은|섹션을/,
+  /원본\s*각주|각주와|원본에서|원본의|원본\s*문구/,
+  /상세에서\s*확인|상세페이지/,
+  /제작자|디자이너|프롬프트|레이아웃|카피라이팅|가이드라인/,
+  /그대로\s*(사용|유지)하세요|함께만\s*사용/
+];
+
+function isMetaCopy(value: string) {
+  return META_COPY_PATTERNS.some((pattern) => pattern.test(value));
+}
+
+/** 기획 메모로 판단되면 버린다. 이미지에 그려지는 것보다 비는 편이 낫다. */
+function consumerText(value: unknown) {
+  const trimmed = text(value);
+  if (!trimmed) return "";
+  if (isMetaCopy(trimmed)) {
+    console.warn(`[generate] 기획 메모로 판단해 카피에서 제외: ${trimmed}`);
+    return "";
+  }
+  return trimmed;
+}
+
 function readSectionCopy(match: Record<string, unknown>, maxPoints = 4, maxExtras = 5): SectionCopy {
   const points = Array.isArray(match.points)
     ? match.points
         .map((point) => {
-          if (typeof point === "string") return { label: point, desc: "" };
+          if (typeof point === "string") return { label: consumerText(point), desc: "" };
           const record = point as Record<string, unknown>;
           return {
-            label: typeof record?.label === "string" ? record.label.trim() : "",
-            desc: typeof record?.desc === "string" ? record.desc.trim() : ""
+            label: consumerText(record?.label),
+            desc: consumerText(record?.desc)
           };
         })
         .filter((point) => point.label || point.desc)
@@ -591,16 +640,15 @@ function readSectionCopy(match: Record<string, unknown>, maxPoints = 4, maxExtra
     : [];
 
   const extras = Array.isArray(match.extras)
-    ? match.extras.filter((extra): extra is string => typeof extra === "string" && extra.trim().length > 0).slice(0, maxExtras)
+    ? match.extras.map((extra) => consumerText(extra)).filter((extra) => extra.length > 0).slice(0, maxExtras)
     : [];
 
   return {
-    eyebrow: text(match.eyebrow),
-    headline: text(match.headline),
-    subheadline: text(match.subheadline),
+    eyebrow: consumerText(match.eyebrow),
+    headline: consumerText(match.headline),
+    subheadline: consumerText(match.subheadline),
     points,
-    extras,
-    note: text(match.note)
+    extras
   };
 }
 

@@ -40,7 +40,6 @@ type SectionCopy = {
   subheadline: string;
   points: Array<{ label: string; desc: string }>;
   extras: string[];
-  note: string;
 };
 
 type SectionResult = {
@@ -1216,7 +1215,7 @@ function Dashboard({
                   onClick={() => onOpenProject(project)}
                   aria-label={`${project.title} 열기`}
                 >
-                  <MiniThumb />
+                  <MiniThumb src={projectThumbUrl(project)} alt={`${project.title} 썸네일`} />
                   <div className="min-w-0">
                     <strong className="block truncate text-sm">{project.title}</strong>
                     <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
@@ -2226,7 +2225,20 @@ function OptionGroup({
   );
 }
 
-function MiniThumb() {
+function projectThumbUrl(project: Project) {
+  const section = project.sections?.find((candidate) => candidate.imageUrl);
+  return section?.imageUrl || "";
+}
+
+function MiniThumb({ src, alt }: { src?: string; alt?: string }) {
+  if (src) {
+    return (
+      <div className="relative h-[56px] w-[44px] overflow-hidden rounded-xl bg-muted">
+        <img src={src} alt={alt || "리디자인 썸네일"} className="h-full w-full object-cover object-top" />
+      </div>
+    );
+  }
+
   return (
     <div className="relative h-[56px] w-[44px] overflow-hidden rounded-xl bg-muted">
       <div className="absolute left-1.5 right-1.5 top-1.5 h-3 rounded-md bg-foreground/80" />
