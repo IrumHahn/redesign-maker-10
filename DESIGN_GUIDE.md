@@ -40,37 +40,37 @@
 
 ## 3. 로고와 파비콘
 
+전체 가이드 페이지: `/brand/logo-guidelines` (앱 내 정적 페이지). 스펙: `docs/superpowers/specs/2026-08-18-wizard-series-brand-design.md`
+
 ### 시리즈 심볼
 
-마법사 시리즈의 기본 심볼은 `작업 문서 + H 모노그램 + 에메랄드 완료선`이다.
+한이룸 브랜드 안의 형제 구조: 실행학교(오렌지 사각형 + R) / 마법사 시리즈(에메랄드 사각형 + W).
+같은 문법을 공유하고 색과 글자만 다르다.
 
-- 바탕: 차콜 사각형
-- 내부: 따뜻한 오프화이트 문서 형태
-- 중심: 굵은 H 모노그램
-- 포인트: 에메랄드 신호 또는 완료선
+- 배경: 에메랄드 `#34d399` 정사각형, 코너 반경 = 변의 22%
+- 중심: 차콜 `#171a1f` W 레터마크 (SVG 패스, 폰트 비의존)
+- 요소는 2개뿐. 별·문서 등 부가 픽토그램 금지
+- 단색: 차콜 사각형 + 오프화이트 W (1도 인쇄 전용)
+- 시리즈 앱 구분은 워드마크 텍스트로만. 앱별 색·글자 변주 금지
 
-이 조합은 `한이룸`, `업무 문서`, `AI 작업 완료`를 함께 암시한다.
+### 규칙
 
-### 파비콘 규칙
+- 여백: 마크 높이의 1/4. 최소 크기 디지털 24px, 인쇄 8mm
+- 금지: 비율 왜곡, 회전, 색 변경, 그림자/글로우, 저대비 배경, 테두리, W 교체, 투명도 조정
 
-- 16px에서도 보이도록 글자형 `HR`에 의존하지 않는다.
-- 요소는 4개 이하로 제한한다: 배경, 문서, 모노그램, 포인트.
-- 얇은 선, 긴 텍스트, 복잡한 그라디언트는 금지한다.
-- 기본 파일:
-  - `src/app/icon.svg`: 64x64 기준
-  - `src/app/apple-icon.svg`: 180x180 기준
+### 파일
+
+- `src/app/icon.svg` (64x64), `src/app/apple-icon.svg` (180x180)
+- `src/components/brand-mark.tsx` — `<BrandMark />`, `<BrandMark mono />`
+- `public/brand/wizard-mark.svg`, `wizard-mark-mono.svg`, `wizard-lockup.svg`
 
 ### 사이드바 로고
 
-현재 앱의 사이드바 로고는 작고 단단한 브랜드 블록으로 사용한다.
-
 ```tsx
-<div className="grid size-9 place-items-center rounded-md bg-foreground text-xs font-black text-background">
-  HR
-</div>
+<BrandMark />  {/* size-9 기본 */}
 ```
 
-새 프로젝트에서도 이 구조를 유지하되, 파비콘 심볼을 이미지로 쓰고 싶다면 동일한 크기와 radius를 유지한다.
+새 시리즈 프로젝트는 위 파일 5개를 그대로 복사하고 워드마크 텍스트만 바꾼다.
 
 ## 4. 컬러 시스템
 

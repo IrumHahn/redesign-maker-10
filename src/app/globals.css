@@ -9,8 +9,8 @@
   --color-muted-foreground: #6b7280;
   --color-border: #dfe4dc;
   --color-ring: rgba(47, 191, 113, 0.28);
-  --font-sans: "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
+  --font-sans: "Pretendard Variable", Pretendard, -apple-system, system-ui, "Apple SD Gothic Neo", sans-serif;
+  --font-mono: "SF Mono", ui-monospace, Menlo, monospace;
 }
 
 * {

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 64" role="img" aria-label="한이룸의 상세페이지 리디자인 마법사 1.5">
+  <rect width="64" height="64" rx="14" fill="#34d399"/>
+  <path d="M17 21l7 24 8-17 8 17 7-24" fill="none" stroke="#171a1f" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+  <text x="80" y="29" font-family="Pretendard, system-ui, sans-serif" font-weight="800" font-size="19" fill="#171a1f">한이룸의 상세페이지</text>
+  <text x="80" y="52" font-family="Pretendard, system-ui, sans-serif" font-weight="800" font-size="19" fill="#171a1f">리디자인 마법사 1.5</text>
+</svg>
