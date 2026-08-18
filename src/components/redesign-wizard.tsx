@@ -22,12 +22,13 @@ import {
   X
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { BrandMark } from "@/components/brand-mark";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
+import { cn, withBasePath } from "@/lib/utils";
 
 type Model = "openai" | "google";
 type View = "dashboard" | "workspace" | "results";
@@ -321,7 +322,7 @@ export function RedesignWizard() {
         form.append("blueprint", JSON.stringify(baseProject.analysis));
       }
 
-      const response = await fetch("/api/generate", {
+      const response = await fetch(withBasePath("/api/generate"), {
         method: "POST",
         body: form,
         signal: abortController.signal
@@ -506,7 +507,7 @@ export function RedesignWizard() {
         sectionId,
         imageBytes: estimateDataUrlBytes(requestImageUrl)
       });
-      const response = await fetch("/api/edit-section", {
+      const response = await fetch(withBasePath("/api/edit-section"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -566,7 +567,7 @@ export function RedesignWizard() {
           onClick={() => setView("dashboard")}
           aria-label="대시보드로 이동"
         >
-          <div className="grid size-9 place-items-center rounded-2xl bg-foreground text-xs font-black text-background">HR</div>
+          <BrandMark />
           <div>
             <strong className="block text-sm leading-tight">한이룸의 상세페이지<br />리디자인 마법사 1.5</strong>
           </div>
@@ -581,7 +582,7 @@ export function RedesignWizard() {
               key={id}
               className={cn(
                 "flex h-11 items-center justify-between rounded-2xl px-4 text-left text-sm font-medium text-muted-foreground transition hover:bg-white/70 hover:text-foreground",
-                view === id && "bg-foreground text-background hover:bg-foreground hover:text-background"
+                view === id && "bg-[#34d399] text-foreground hover:bg-[#34d399] hover:text-foreground"
               )}
               onClick={() => setView(id as View)}
             >
@@ -610,7 +611,6 @@ export function RedesignWizard() {
             onNew={() => setView("workspace")}
             onOpenProject={openProject}
             onDeleteProject={deleteProject}
-            onSettings={() => setSettingsOpen(true)}
           />
         )}
         {view === "workspace" && (
@@ -759,7 +759,7 @@ function simplifyPlainTextError(text: string, status: number) {
 }
 
 function reportClientLog(event: string, payload: Record<string, unknown> = {}) {
-  fetch("/api/client-log", {
+  fetch(withBasePath("/api/client-log"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ event, payload, timestamp: new Date().toISOString() }),
@@ -1179,19 +1179,16 @@ function Dashboard({
   projects,
   onNew,
   onOpenProject,
-  onDeleteProject,
-  onSettings
+  onDeleteProject
 }: {
   projects: Project[];
   onNew: () => void;
   onOpenProject: (project: Project) => void;
   onDeleteProject: (project: Project) => void;
-  onSettings: () => void;
 }) {
   return (
     <section>
       <Topbar eyebrow="대시보드">
-        <Button variant="ghost" onClick={onSettings}><KeyRound className="size-4" />API 키</Button>
         <Button onClick={onNew}><Sparkles className="size-4" />새 리디자인 시작</Button>
       </Topbar>
 
@@ -1848,7 +1845,7 @@ const plannedSections: Array<[string, string]> = [
   ["S5", "근거·신뢰"],
   ["S6", "사용법"],
   ["S7", "후기"],
-  ["S8", "FAQ·안내"]
+  ["S8", "배송·교환 안내"]
 ];
 
 /** 아직 만들지 않은 섹션을 이어서 생성하는 패널. */
@@ -1909,6 +1906,8 @@ function RolloutPanel({
 }
 
 const quickEditPresets = [
+  ["빈말 제거", "읽어도 정보가 남지 않는 문구(확인 가능, 규정에 따라 처리, 빠르고 안전하게 배송 등)를 빼고, 원본에서 확인되는 구체적인 사실로만 채워주세요. 채울 내용이 없으면 그 칸을 없애고 레이아웃을 다시 짜주세요."],
+  ["수치·메뉴 제거", "평점 숫자와 후기 개수, 판매량, 순위 배지를 없애주세요. 흐리게 처리하거나 가리지 말고 완전히 지운 뒤 그 자리를 배경으로 자연스럽게 메워주세요. 별 아이콘은 또렷하게 그대로 두세요. 자주묻는질문·배송안내처럼 누르는 메뉴로 보이는 아이콘 줄도 없애주세요."],
   ["카피 강화", "헤드라인과 핵심 문구를 더 명확하고 구매전환 중심으로 강화해주세요. 근거 없는 수치나 효능은 추가하지 마세요."],
   ["글자 크게", "정보량은 그대로 두고 대제목과 소제목, 본문 글자만 더 크게 키워 스마트폰에서 잘 읽히게 해주세요."],
   ["정보 채우기", "빈 여백이 많습니다. 아이콘 타일 줄이나 정보 카드를 더 추가해 화면을 정보로 채워주세요. 없는 사실은 만들지 마세요."],
@@ -2163,7 +2162,7 @@ function Topbar({ eyebrow, title, children }: { eyebrow: string; title?: string;
   return (
     <div className="mb-5 flex items-center justify-between gap-4 max-md:flex-col max-md:items-start">
       <div>
-        <p className={cn("text-xs font-bold text-muted-foreground", title && "mb-1")}>{eyebrow}</p>
+        <p className={cn("font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground", title && "mb-1")}>{eyebrow}</p>
         {title ? <h1 className="max-w-2xl text-2xl font-bold leading-tight tracking-normal max-md:text-xl">{title}</h1> : null}
       </div>
       {children ? <div className="flex flex-wrap items-center gap-1">{children}</div> : null}

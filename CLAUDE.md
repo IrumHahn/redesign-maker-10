@@ -40,8 +40,12 @@ npm run publish
 라이브 주소:
 
 ```text
-https://hanirum-redesign-wizard.vercel.app/
+https://wizard.irumai.kr/redesign/15
 ```
+
+1.5는 Vercel 프로젝트 `redesign-wizard-15`, basePath `/redesign/15`에서 서비스한다.
+1.0은 같은 저장소의 `v1.0` 태그이며 별도 프로젝트 `hanirum-redesign-wizard`에서 그대로 유지된다. 두 배포를 섞지 않는다.
+클라이언트에서 API를 호출하거나 정적 자산을 링크할 때는 `withBasePath()`를 반드시 거친다.
 
 로컬 브라우저 IndexedDB/localStorage에 저장된 작업 결과는 Production으로 자동 동기화되지 않는다.
 

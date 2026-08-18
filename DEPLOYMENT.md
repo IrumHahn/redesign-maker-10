@@ -32,11 +32,29 @@ npm run build
 npm run publish
 ```
 
-라이브 주소:
+라이브 주소(1.5):
+
+```text
+https://wizard.irumai.kr/redesign/15
+```
+
+Vercel 프로젝트는 `redesign-wizard-15`입니다.
+
+## 1.0과의 분리
+
+1.0은 같은 저장소의 옛 커밋(`v1.0` 태그 = `ec6d1ae`)이며, 별도 Vercel 프로젝트에서 계속 서비스합니다.
 
 ```text
 https://hanirum-redesign-wizard.vercel.app/
 ```
+
+이 폴더는 `redesign-wizard-15` 프로젝트에 연결되어 있으므로, 여기서 배포해도 1.0 주소는 영향을 받지 않습니다.
+1.0을 되돌릴 일이 생기면 Vercel 대시보드의 Instant Rollback을 사용합니다.
+
+## 경로 규칙
+
+1.5는 `basePath: '/redesign/15'` 아래에서 동작합니다. 새 API 호출이나 정적 자산 링크를 추가할 때는
+`@/lib/utils`의 `withBasePath()`를 반드시 거쳐야 합니다. Next.js의 basePath는 `fetch()` 경로를 자동으로 바꿔주지 않습니다.
 
 ## 참고
 
