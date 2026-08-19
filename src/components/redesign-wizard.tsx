@@ -70,6 +70,7 @@ type Project = {
   channel: string;
   mode?: RedesignMode;
   sectionTotal?: number;
+  sectionNames?: string[];
   model: Model;
   count: number;
   ratio: string;
@@ -885,6 +886,8 @@ function totalSectionsOf(project?: Project | null) {
 
 /** 원본 구성 유지 모드에서 이어서 만들 섹션 이름을 분석 결과에서 꺼낸다. */
 function blueprintSectionNames(project?: Project | null): string[] {
+  // 서버가 그릴 문구가 없는 블록을 걸러낸 뒤 내려준 목록을 우선 쓴다. 장수(sectionTotal)와 같은 기준이다.
+  if (Array.isArray(project?.sectionNames) && project.sectionNames.length > 0) return project.sectionNames.slice(0, 10);
   const sections = (project?.analysis as { sections?: unknown })?.sections;
   if (!Array.isArray(sections)) return [];
   return sections.slice(0, 10).map((item, index) => {

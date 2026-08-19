@@ -186,6 +186,10 @@ export async function POST(request: NextRequest) {
         channel,
         mode,
         sectionTotal,
+        // 원본 구성 유지 모드에서 클라이언트가 "남은 섹션" 이름을 서버와 같은 기준으로 보여주도록 내려준다.
+        sectionNames: mode === "preserve"
+          ? preserveBlueprintRecords(analysis).map((record, index) => text(record.name) || `원본 ${index + 1}번째 섹션`)
+          : undefined,
         model: provider,
         modelLabel: modelInfo.label,
         modelId: modelInfo.id,
@@ -258,6 +262,12 @@ function preserveAnalysisPrompt(payload: AnalysisPayload, modelInfo: ReturnType<
     "이 작업은 카피라이팅이 아니다. 문구를 새로 쓰거나 요약하거나 다듬지 않는다.",
     `판매 채널: ${payload.options.channel}`,
     `사용자 요청사항(디자인 참고용이며 문구에는 반영하지 않는다): ${payload.request || "없음"}`,
+    "",
+    "# 섹션을 나누는 기준",
+    "원본을 위에서 아래로 읽다가 배경색이 바뀌거나, 큰 제목이 새로 나오거나, 주제가 바뀌는 지점에서 섹션을 끊는다.",
+    "한 섹션은 고객이 한 화면에서 읽는 메시지 하나다. 제목 하나에 딸린 설명과 포인트가 한 섹션이다.",
+    "원본이 번호나 'Point 01, 02'처럼 항목을 나눠 놓았으면 그 항목 하나하나를 각각 섹션으로 잡는다. 묶지 않는다.",
+    "반대로 해시태그 줄, 구분선, 로고만 있는 띠, 법적 고지 한 줄처럼 대제목도 설명도 없는 블록은 섹션이 아니다. 앞 섹션에 붙이거나 건너뛴다.",
     "",
     "# 전사 규칙(강제)",
     "- 원본 이미지에 적힌 문장을 그대로 옮긴다. 새 문장을 만들거나 의역하지 않는다",
@@ -518,9 +528,7 @@ function buildSections(
         ? "# 이미지에 넣을 문구 (원본에서 그대로 옮겨온 문장이다. 한 글자도 바꾸지 말고 그대로 렌더링한다)"
         : "# 이미지에 넣을 문구 (아래 문구를 그대로 사용하고 새 문구를 지어내지 않는다)",
       copy.eyebrow ? `상단 라벨(작은 알약 배지): ${copy.eyebrow}` : "상단 라벨: 없음",
-      copy.headline
-        ? `대제목(가장 크게, 2~3줄로 끊어서): ${copy.headline}`
-        : "대제목: 확정된 문구가 없다. 참조 이미지에서 보이는 제품 사실만 근거로, 이 제품을 사려는 사람이 얻는 것을 한 문장으로 쓴다. 제품을 모르는 사람이 읽어도 한 번에 그림이 그려지게.",
+      copy.headline ? `대제목(가장 크게, 2~3줄로 끊어서): ${copy.headline}` : "대제목: 없음",
       copy.subheadline ? `설명: ${copy.subheadline}` : "설명: 없음",
       copy.points.length > 0
         ? `핵심 포인트(각각 아이콘 + 굵은 소제목 + 설명 2줄 구조로 배치):\n${copy.points.map((point, pointIndex) => [
@@ -590,20 +598,33 @@ function unifyRule(isFirstSection: boolean, preserve: boolean) {
 
 /** 원본 구성 유지 모드에서는 분석이 전사한 원본 섹션이 그대로 생성 계획이 된다. */
 function preserveSectionPlans(analysis: unknown, count: number, startSection: number): SectionPlan[] {
-  return blueprintSections(analysis)
-    .map((item, index) => {
-      const record = (item || {}) as Record<string, unknown>;
-      return {
-        id: `S${index + 1}`,
-        name: text(record.name) || `원본 ${index + 1}번째 섹션`,
-        purpose: "원본 섹션의 정보와 문구를 그대로 유지한 채 디자인과 레이아웃만 새로 만든다.",
-        source: text(record.evidence) || "원본 상세페이지 해당 구간",
-        layout: "",
-        order: index + 1,
-        copy: readSectionCopy(record, 6, 6)
-      };
-    })
+  return preserveBlueprintRecords(analysis)
+    .map((record, index) => ({
+      id: `S${index + 1}`,
+      name: text(record.name) || `원본 ${index + 1}번째 섹션`,
+      purpose: "원본 섹션의 정보와 문구를 그대로 유지한 채 디자인과 레이아웃만 새로 만든다.",
+      source: text(record.evidence) || "원본 상세페이지 해당 구간",
+      layout: "",
+      order: index + 1,
+      copy: readSectionCopy(record, 6, 6)
+    }))
     .slice(startSection - 1, startSection - 1 + count);
+}
+
+/**
+ * 전사 결과 중 실제로 그릴 문구가 있는 섹션만 남긴다.
+ * 해시태그 줄, 구분선, 로고만 있는 띠처럼 대제목도 포인트도 없는 블록은 한 장을 차지할 내용이 없다.
+ * 이런 블록이 들어오면 이미지 모델이 빈 제목 자리를 채우려다 지시문을 그대로 그리는 사고가 난다.
+ */
+function preserveBlueprintRecords(analysis: unknown): Record<string, unknown>[] {
+  return blueprintSections(analysis)
+    .map((item) => (item || {}) as Record<string, unknown>)
+    .filter((record) => {
+      const copy = readSectionCopy(record, 6, 6);
+      const hasBody = Boolean(copy.headline || copy.subheadline) || copy.points.length > 0;
+      if (!hasBody) console.info(`[generate] 그릴 문구가 없는 원본 블록 제외: ${text(record.name) || "(이름 없음)"}`);
+      return hasBody;
+    });
 }
 
 function blueprintSections(analysis: unknown): unknown[] {
@@ -612,7 +633,7 @@ function blueprintSections(analysis: unknown): unknown[] {
 }
 
 function blueprintSectionCount(analysis: unknown) {
-  return blueprintSections(analysis).length;
+  return preserveBlueprintRecords(analysis).length;
 }
 
 /** 분석이 확정한 섹션 카피를 꺼낸다. 분석 실패 시에는 템플릿 목적을 그대로 쓰도록 빈 값을 준다. */
