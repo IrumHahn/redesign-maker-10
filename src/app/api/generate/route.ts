@@ -265,8 +265,6 @@ function preserveAnalysisPrompt(payload: AnalysisPayload, modelInfo: ReturnType<
     "- 원본에 해당 요소가 없으면 빈 문자열이나 빈 배열로 둔다. 억지로 채우지 않는다",
     "- 구매 버튼이나 CTA 버튼 문구는 옮기지 않는다",
     "- 후기 개수, 평균 별점, 평점, 판매량, 순위처럼 시점마다 바뀌는 수치와 누르는 메뉴 이름은 원본에 있어도 옮기지 않는다. 다른 플랫폼에 올리면 거짓이 되고 이미지는 클릭되지 않는다",
-    "- 원본을 설명하거나 평가하지 않는다. \\'~ 확인\\', \\'~ 보세요\\', \\'~ 다는 말이 있어요\\', \\'~ 문구는 보이지 않아요\\'처럼 원본에 무엇이 있고 없는지 보고하는 문장을 만들면 실패다",
-    "- 원본에 소비자용 문장이 없는 자리는 빈 값으로 둔다. 네가 대신 설명을 지어내지 않는다",
     "",
     "# 출력 형식",
     "JSON 키: product_inferred, diagnostic_summary, strategy, sections, compliance_notes",
