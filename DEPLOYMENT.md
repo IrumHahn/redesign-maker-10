@@ -61,3 +61,27 @@ https://hanirum-redesign-wizard.vercel.app/
 - Preview 배포만 필요할 때는 `npm run deploy:preview`를 사용합니다.
 - Production 배포만 바로 실행할 때는 `npm run deploy:prod`를 사용합니다.
 - 로컬 브라우저 IndexedDB에 저장된 생성 결과는 Production으로 자동 동기화되지 않습니다.
+
+## 문의하기(버그신고)
+
+1.5의 문의하기는 접수만 만들고, 저장·어드민·회신은 PDP Maker 3.0과 함께 씁니다.
+접수 레코드에는 `source: "redesign-wizard-15"`가 붙어 어드민에서 제품별로 구분됩니다.
+
+```text
+브라우저 → /redesign/15/api/bug-report (1.5 서버) → PDP Maker 3.0 접수 API
+```
+
+어드민 주소:
+
+```text
+https://pdp-maker-30.vercel.app/pdp-maker/admin/bug-reports?source=redesign-wizard-15
+```
+
+환경변수 이름(값은 Vercel에만 둡니다):
+
+```text
+PDP_BUG_REPORT_ENDPOINT
+```
+
+설정하지 않으면 `https://pdp-maker-30.vercel.app/api/pdp/bug-reports`를 씁니다.
+디스코드/이메일 알림 키와 어드민 토큰은 3.0 프로젝트에만 있으면 됩니다.

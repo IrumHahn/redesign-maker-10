@@ -22,6 +22,7 @@ import {
   X
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { ContactWidget } from "@/components/contact-widget";
 import { BrandMark } from "@/components/brand-mark";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -712,6 +713,18 @@ export function RedesignWizard() {
           onCancel={cancelGeneration}
         />
       )}
+      <ContactWidget
+        context={{
+          surface: view,
+          appState: generating ? "generating" : activeProject?.sections?.length ? "has-results" : "idle",
+          aiProvider: models[selectedModel].label,
+          redesignMode,
+          channel,
+          ratio,
+          sectionCount: activeProject?.sections?.length ?? 0,
+          errorMessage: toast && isPersistentToast(toast) ? toast : undefined
+        }}
+      />
     </div>
   );
 }
