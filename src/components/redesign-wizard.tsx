@@ -76,6 +76,7 @@ type Project = {
   ratio: string;
   status: string;
   files: string[];
+  productFiles?: string[];
   request: string;
   createdAt: string;
   sections: SectionResult[];
@@ -1682,7 +1683,7 @@ function Results({
 
   return (
     <section>
-      <Topbar eyebrow={`결과 확인 · ${redesignModeLabel(project.mode)}`} title={title}>
+      <Topbar eyebrow={`결과 확인 · ${redesignModeLabel(project.mode)} · ${models[project.model]?.label || project.model} · 원본 ${project.files.length}장${project.productFiles?.length ? ` · 제품 사진 ${project.productFiles.length}장` : " · 제품 사진 없음"}`} title={title}>
         <Button variant="ghost" onClick={copyCopyMarkdown}><Copy className="size-4" />카피 복사</Button>
         <Button variant="ghost" onClick={onSave}><FileText className="size-4" />저장</Button>
         <Button onClick={downloadZip} disabled={downloadableSections.length === 0 || exporting}>
